@@ -1,0 +1,23 @@
+# ─── API keys — NEVER commit ────────────────────────────────
+.env
+.env.*
+
+# ─── Paper PDFs — copyrighted + large (~30MB); site builds fine without them
+**/*.pdf
+
+# ─── Generated site — GitHub Actions rebuilds this on every push
+site/
+
+# ─── Local-only state ───────────────────────────────────────
+layout.json
+
+# ─── Python ─────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+
+# ─── macOS / editors ────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+.vscode/
+.idea/

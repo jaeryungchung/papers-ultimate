@@ -1,0 +1,5 @@
+# Optional — only needed for AI analysis (python papers.py analyze)
+anthropic>=0.30.0
+
+# Optional — better PDF title matching on sync
+pypdf>=4.0.0
