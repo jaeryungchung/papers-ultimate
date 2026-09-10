@@ -1,0 +1,119 @@
+[
+  {
+    "key": "rhys2025beyond",
+    "title": "Beyond Productivity: Rethinking the Impact of Creativity Support Tools",
+    "authors": "Rhys Cox, Samuel and B{o}jer Djernes, Helena and van Berkel, Niels",
+    "year": 2025,
+    "venue_short": "C&C '25",
+    "venue_full": "Proceedings of the 2025 Conference on Creativity and Cognition",
+    "doi": "10.1145/3698061.3726924",
+    "abstract": "Creativity Support Tools (CSTs) are widely used across diverse creative domains, with generative AI recently increasing the abilities of CSTs. To better understand how the success of CSTs is determined in the literature, we conducted a review of outcome measures used in CST evaluations. Drawing from (n=173) CST evaluations in the ACM Digital Library, we identified the metrics commonly employed to assess user interactions with CSTs. Our findings reveal prevailing trends in current evaluation practices, while exposing underexplored measures that could broaden the scope of future research. Based on these results, we argue for a more holistic approach to evaluating CSTs, encouraging the HCI community to consider not only user experience and the quality of the generated output, but also user-centric aspects such as self-reflection and well-being as critical dimensions of assessment. We also highlight a need for validated measures specifically suited to the evaluation of generative AI in CSTs.",
+    "keywords": [
+      "Creativity",
+      "Creativity Support Tools (CSTs)",
+      "Literature Review",
+      "Evaluation Measures",
+      "Outcome Measures"
+    ],
+    "affiliations": [
+      "Aalborg University"
+    ],
+    "notes": "**Authors:** Rhys Cox, Samuel and B{\\o}jer Djern{\\ae}s, Helena and van Berkel, Niels\n**Year:** 2025\n**Venue:** Proceedings of the 2025 Conference on Creativity and Cognition\n**DOI:** 10.1145/3698061.3726924\n\n---\n\n## Notes\n\n\n\n## Key Points\n\n- \n\n## Relevance",
+    "ai": "<!-- AI Analysis: rhys2025beyond – 2026-09-10 16:47 -->\n<!-- See also: [rhys2025beyond.md](rhys2025beyond.md) -->\n\n# AI Analysis: Beyond Productivity: Rethinking the Impact of Creativity Support Tools\n\n_User notes: [rhys2025beyond.md](rhys2025beyond.md)_ · [Full PDF](rhys2025beyond.pdf)\n\n---\n\n## Summary\nThis paper presents a systematic review of outcome measures used in 173 empirical studies of Creativity Support Tools (CSTs) from the ACM Digital Library (2015–2024). The authors find that while user experience (90%) and creative artefact quality (54%) are frequently measured, user-centric benefits like well-being, self-reflection, and skill development are rarely assessed (15%). They argue for a more holistic approach to CST evaluation that considers benefits to users themselves, not just productivity outcomes.\n\n## Affiliations\nSamuel Rhys Cox, Helena Bøjer Djernæs, Niels van Berkel - Department of Computer Science, Aalborg University, Denmark\n\n<Aalborg University>\n\n## Core Contributions\n- Systematic categorization of CST outcome measures into three themes: User Experience with CST, Creative Artefact Quality, and User-Centric Benefits\n- Identification of a significant gap in research: only 15% of studies measure user-centric benefits (learning, well-being, self-reflection, self-perception)\n- Documentation of prevalent reliance on ad hoc measures, particularly for evaluating human-AI collaboration in CSTs\n- Call for validated measures specifically suited to evaluating generative AI in creativity contexts\n- Comprehensive mapping of 173 papers across measure types, venues, and years (2015-2024)\n\n## Methodology\n- **Scope:** 10-year review (2015-2024) of ACM Digital Library publications\n- **Search Strategy:** Searched \"creativity support tool\" anywhere in publication + \"creativity\" as keyword\n- **Initial Results:** 1,241 papers screened down to 173 included papers\n- **Analysis:** Two researchers conducted thematic analysis using open coding to extract outcome measures\n- **Inclusion Criteria:** Empirical evaluations of user interactions with CSTs, including human-AI co-creativity tools\n- **Exclusion Criteria:** Formative work, fully automated systems, taxonomy development, observational-only studies, insufficient measure descriptions\n\n## Key Findings\n- **User Experience (90% of studies):** General usability measures dominated (n=101), with SUS (n=20) and CSI (n=50) being common validated scales; many ad hoc measures used\n- **Creative Artefact Quality (54%):** Well-established measures from creativity literature (fluency, flexibility, originality, elaboration from TTCT); human ratings and quantitative content analysis\n- **User-Centric Benefits (15%):** Included intrinsic abilities (n=13), emotional well-being (n=6), self-reflection (n=6), self-perception (n=5); often used pre/post-test designs\n- **Generative AI Gap:** Studies evaluating human-AI collaboration increasingly rely on ad hoc measures, indicating need for validated scales addressing ownership, agency, and collaboration dynamics\n- **Publication Trends:** CHI (n=55), C&C (n=28), DIS (n=16), UIST (n=16) were top venues\n\n## Limitations & Future Work\n**Limitations:**\n- Review limited to ACM Digital Library only; other repositories (IEEE Xplore, Science Direct) may contain additional measures\n- Definition of CST varies across literature; authors chose to include co-creative AI systems\n- Exploratory studies excluded, which may contain user-centric measures not captured\n\n**Future Directions:**\n- Development of validated measures for human-AI co-creativity experiences\n- Greater emphasis on longitudinal studies to assess behavior change and well-being outcomes\n- Integration of measures from conversational user interface (CUI) research\n- Adoption of user-centric outcomes informed by health/arts research (citing Fancourt & Finn's WHO scoping review)\n\n## Connection to User Notes\nThe user's notes are empty—no key points, relevance, or personal annotations were provided. The paper would be relevant to researchers interested in: (1) methodology for evaluating creative AI tools, (2) human-AI collaboration in creative contexts, (3) well-being and personal benefits of creative technology use, or (4) systematic review methodology in HCI.\n\n## Related Work Cited\n- **Frich et al. (2019)** - \"Mapping the Landscape of Creativity Support Tools in HCI\" - foundational CST review covering methodological approaches\n- **Cherry & Latulipe (2014)** - Creativity Support Index (CSI) - most widely adopted validated measure for creativity support evaluation\n- **Fancourt & Finn (2019)** - WHO scoping review on arts and health/well-being - provides foundation for user-centric benefits\n- **Remy et al. (2020)** - Prior review of CST evaluation methodologies (differentiated from current work's focus on outcome measures)\n- **Lawton et al. (2023)** - Mixed-Initiative Creativity Support Index (MICSI) - extends CSI for human-AI co-creation contexts\n\n---\n\n## Screenshots\n\n![rhys2025beyond_01.png](rhys2025beyond_01.png)\n\n---\n_Generated 2026-09-10 by Claude (model: claude-opus-4-5)_\n",
+    "rating": 4,
+    "add_order": 0,
+    "imgs": [
+      "rhys2025beyond_01.png"
+    ]
+  },
+  {
+    "key": "chung2025wrighthere",
+    "title": "WrightHere: Supporting Children's Creative Writing with AI-Infused Interactive 3D Environment",
+    "authors": "Chung, Jaeryung and Kim, Seon Gyeom and Lee, Tak Yeon",
+    "year": 2025,
+    "venue_short": "EA CHI '25",
+    "venue_full": "Proceedings of the Extended Abstracts of the CHI Conference on Human Factors in Computing Systems",
+    "doi": "10.1145/3706599.3719932",
+    "abstract": "WrightHere is a generative AI-infused writing system that generates interactive 3D environments of the written story where users can explore, interact with characters, and gather inspiration to facilitate their creative writing. While creative writing is crucial for child development, it poses a unique challenge and sets a high hurdle for children. Building upon past research of providing effective stimuli for new inspiration, we explore how AI-infused interactive 3D scenes of stories can spark creativity and help children maintain their writing momentum. Through user studies with the WrightHere system, we examined how this integration of AI-generated 3D environments with writing interfaces enhances engagement and writing output. This work presents WrightHere as a novel prototype exploring the potential of generative AI and interactive 3D environments in supporting children’s creative writing process.",
+    "keywords": [
+      "Generative AI",
+      "3D interaction",
+      "creative writing",
+      "storytelling",
+      "LLM"
+    ],
+    "affiliations": [
+      "KAIST"
+    ],
+    "notes": "**Authors:** Chung, Jaeryung and Kim, Seon Gyeom and Lee, Tak Yeon\n**Year:** 2025\n**Venue:** Proceedings of the Extended Abstracts of the CHI Conference on Human Factors in Computing Systems\n**DOI:** 10.1145/3706599.3719932\n\n---\n\n## Notes\n\n\n\n## Key Points\n\n- \n\n## Relevance",
+    "ai": "<!-- AI Analysis: chung2025wrighthere – 2026-09-10 16:50 -->\n<!-- See also: [chung2025wrighthere.md](chung2025wrighthere.md) -->\n\n# AI Analysis: WrightHere: Supporting Children's Creative Writing with AI-Infused Interactive 3D Environment\n\n_User notes: [chung2025wrighthere.md](chung2025wrighthere.md)_ · [Full PDF](chung2025wrighthere.pdf)\n\n---\n\n## Summary\nWrightHere is a generative AI-infused creative writing system that generates interactive 3D environments from children's written stories, allowing users to explore scenes, interact with characters through dialogue, and gather inspiration to overcome writer's block. The system supports the cyclical nature of creative writing through two modes—Writer Mode for composition and Dive-in Mode for exploration—enabling seamless transitions between imagination and story creation.\n\n## Affiliations\n**Jaeryung Chung** - Department of Industrial Design, KAIST\n**Seon Gyeom Kim** - Department of Industrial Design, KAIST\n**Tak Yeon Lee** - Department of Industrial Design, KAIST\n\n<KAIST>\n\n## Core Contributions\n- A novel dual-mode writing system integrating AI-generated 3D environments (Writer Mode + Dive-in Mode) to support creative writing's cyclical planning-translating process\n- Story Materials system that captures dialogues, memos, and characters from 3D exploration for later use in writing via drag-and-drop co-writing\n- Real-time generation pipeline combining 360° environment generation, 3D character mesh creation, text-to-speech dialogue, and context-aware background music selection\n- Demonstration of how spatial exploration and character interaction can catalyze narrative development and emotional engagement in children\n\n## Methodology\n- **System built:** Unity-based application using ChatGPT-4o as central controller, Skybox AI for 360° environments, Meshy API for 3D characters, NAVER HyperCLOVA X for TTS, and Musicfy-generated music library (9 tracks)\n- **Study design:** Qualitative user study with one-hour story creation sessions followed by exploratory interviews\n- **Participants:** 6 participants (4 elementary school students ages 9-12, 1 middle school student age 14, 1 high school student age 18)\n- **Metrics:** Qualitative feedback through open-ended questions about positive/negative experiences; behavioral observations during use\n\n## Key Findings\n- Scene exploration and generation were the most frequently used features; participants developed narratives through spatial exploration and iterative scene refinement\n- Character interactions drove both emotional engagement (P1 created companion for lonely character) and story progression (P2 asked sword \"Can I fly with you?\")\n- Younger participants showed more unconstrained imagination with AI, treating characters as autonomous beings; older participants had more specific output expectations\n- Story Materials effectively bridged ideation and writing—participants used memos to overcome writer's block while maintaining creative agency\n- Processing speed directly impacted feature usage (faster scene generation used more than slower character creation)\n\n## Limitations & Future Work\n- **Limitations acknowledged:** Qualitative-only findings; PC-based interface limits full spatial interaction; Korean language users only; short one-hour sessions; VR version developed but unusable due to child hardware constraints\n- **Future directions:** Quantitative measures (writing performance, confidence, ideation capacity); optimized generation speeds; more diverse audio options and customizable character aesthetics; cross-cultural/linguistic studies; longer-term engagement; future VR implementation when child-friendly hardware improves\n\n## Connection to User Notes\nThe user notes are empty with no key points or relevance filled in. The paper presents a creative writing support system for children combining generative AI with interactive 3D environments—this may be relevant to research on AI-assisted creativity tools, child-computer interaction, or multimodal writing interfaces.\n\n## Related Work Cited\n- Flower & Hayes (1981) - \"A Cognitive Process Theory of Writing\" (theoretical foundation for planning/translating stages)\n- Gero, Long & Chilton (2023) - \"Social Dynamics of AI Support in Creative Writing\" (AI in creative writing cycles)\n- Qin et al. (2024) - \"CharacterMeet: Supporting Creative Writers' Entire Story Character Construction Processes\" (LLM-powered character interaction)\n- Fan et al. (2024) - \"StoryPrompt: Exploring the Design Space of an AI-Empowered Creative Storytelling System for Elementary Children\"\n- Gonçalves & Campos (2018) - \"Mild Place Illusion: A Virtual Reality Factor to Spark Creativity in Writing\" (VR for creative writing)\n\n---\n\n## Screenshots\n\n_No screenshots yet._\n\n---\n_Generated 2026-09-10 by Claude (model: claude-opus-4-5)_\n",
+    "rating": 4,
+    "add_order": 1,
+    "imgs": []
+  },
+  {
+    "key": "williams2024doodlebot",
+    "title": "Doodlebot: An Educational Robot for Creativity and AI Literacy",
+    "authors": "Williams, Randi and Ali, Safinah and Alcantara, Ra{\\'u}l and Burghleh, Tasneem and Alghowinem, Sharifa and Breazeal, Cynthia",
+    "year": 2024,
+    "venue_short": "HRI '24",
+    "venue_full": "Proceedings of the 2024 ACM/IEEE International Conference on Human-Robot Interaction",
+    "doi": "10.1145/3610977.3634950",
+    "abstract": "Today, Artificial Intelligence (AI) is prevalent in everyday life, with emerging technologies like AI companions, autonomous vehicles, and AI art tools poised to significantly transform the future. The development of AI curricula that shows people how AI works and what they can do with it is a powerful way to prepare everyone, and especially young learners, for an increasingly AI-driven world. Educators often employ robotic toolkits in the classroom to boost engagement and learning. However, these platforms are generally unsuitable for young learners and learners without programming expertise. Moreover, these platforms often serve as either programmable artifacts or pedagogical agents, rarely capitalizing on the opportunity to support students in both capacities. We designed Doodlebot, a mobile social robot for hands-on AI education to address these gaps. Doodlebot is an effective tool for exploring AI with grade school (K-12) students, promoting their understanding of AI concepts such as perception, representation, reasoning and generation. We begin by elaborating Doodlebot's design, highlighting its reliability, user-friendliness, and versatility. Then, we demonstrate Doodlebot's versatility through example curricula about AI character design, autonomous robotics, and generative AI accessible to young learners. Finally, we share the results of a preliminary user study with elementary school youth where we found that the physical Doodlebot platform was as effective and user-friendly as the virtual version. This work offers insights into designing interactive educational robots that can inform future AI curricula and tools.",
+    "keywords": [
+      "collaboration",
+      "creativity",
+      "education",
+      "social robots"
+    ],
+    "affiliations": [
+      "unknown"
+    ],
+    "notes": "**Authors:** Williams, Randi and Ali, Safinah and Alcantara, Ra{\\'u}l and Burghleh, Tasneem and Alghowinem, Sharifa and Breazeal, Cynthia\n**Year:** 2024\n**Venue:** Proceedings of the 2024 ACM/IEEE International Conference on Human-Robot Interaction\n**DOI:** 10.1145/3610977.3634950\n\n---\n\n## Notes\n\n\n\n## Key Points\n\n- \n\n## Relevance",
+    "ai": "<!-- AI Analysis: williams2024doodlebot -->\n<!-- See also: [williams2024doodlebot.md](williams2024doodlebot.md) -->\n\n# AI Analysis: Doodlebot: An Educational Robot for Creativity and AI Literacy\n\n_User notes: [williams2024doodlebot.md](williams2024doodlebot.md)_ · [Full PDF](williams2024doodlebot.pdf)\n\n---\n\n## Affiliations\n\n<!-- Add institution tags below. Example: <MIT> <KAIST> <Aalborg> -->\n<!-- Authors: Williams, Randi and Ali, Safinah and Alcantara, Ra{\\'u}l and Burghleh, Tasneem and Alghowinem, Sharifa and Breazeal, Cyn -->\n<unknown>\n\n---\n\n## Summary\n\n_Run `python papers.py analyze williams2024doodlebot` to generate AI analysis._\n\n## Screenshots\n\n_Drop screenshots here, then run `python papers.py imgs williams2024doodlebot` or `python papers.py imgs`_\n\n---\n",
+    "rating": 4,
+    "add_order": 2,
+    "imgs": []
+  },
+  {
+    "key": "van2021human",
+    "title": "Human-AI interaction: intermittent, continuous, and proactive",
+    "authors": "van Berkel, Niels and Skov, Mikael B. and Kjeldskov, Jesper",
+    "year": 2021,
+    "venue_short": "Interactions '21",
+    "venue_full": "Interactions",
+    "doi": "10.1145/3486941",
+    "abstract": "",
+    "keywords": [],
+    "affiliations": [
+      "unknown"
+    ],
+    "notes": "**Authors:** van Berkel, Niels and Skov, Mikael B. and Kjeldskov, Jesper\n**Year:** 2021\n**Venue:** Interactions\n**DOI:** 10.1145/3486941\n\n---\n\n## Notes\n\n\n\n## Key Points\n\n- \n\n## Relevance\n\nTherefore, we encourage\nfuture work in the areas of continuous\nand proactive human-AI interaction,\nensuring the usability of the next\ngeneration of interactive systems.",
+    "ai": "<!-- AI Analysis: van2021human -->\n<!-- See also: [van2021human.md](van2021human.md) -->\n\n# AI Analysis: Human-AI interaction: intermittent, continuous, and proactive\n\n_User notes: [van2021human.md](van2021human.md)_ · [Full PDF](van2021human.pdf)\n\n---\n\n## Affiliations\n\n<!-- Tag each author's institution: <MIT> <KAIST> <Aalborg> etc. -->\n<!-- Authors: van Berkel, Niels and Skov, Mikael B. and Kjeldskov, Jesper -->\n<unknown>\n\n---\n\n## Summary\n\n_Run `python papers.py analyze van2021human` to generate AI analysis._\n\n## Screenshots\n\n_Drop screenshots here, then run `python papers.py imgs van2021human` or `python papers.py imgs`_\n\n---\n",
+    "rating": 4,
+    "add_order": 3,
+    "imgs": []
+  },
+  {
+    "key": "mcreynolds2017toys",
+    "title": "Toys that Listen: A Study of Parents, Children, and Internet-Connected Toys",
+    "authors": "McReynolds, Emily and Hubbard, Sarah and Lau, Timothy and Saraf, Aditya and Cakmak, Maya and Roesner, Franziska",
+    "year": 2017,
+    "venue_short": "CHI '17",
+    "venue_full": "Proceedings of the 2017 CHI Conference on Human Factors in Computing Systems",
+    "doi": "10.1145/3025453.3025735",
+    "abstract": "Hello Barbie, CogniToys Dino, and Amazon Echo are part of a new wave of connected toys and gadgets for the home that listen. Unlike the smartphone, these devices are always on, blending into the background until needed. We conducted interviews with parent-child pairs in which they interacted with Hello Barbie and CogniToys Dino, shedding light on children's expectations of the toys' \"intelligence'\" and parents' privacy concerns and expectations for parental controls. We find that children were often unaware that others might be able to hear what was said to the toy, and that some parents draw connections between the toys and similar tools not intended as toys (e.g., Siri, Alexa) with which their children already interact. Our findings illuminate people's mental models and experiences with these emerging technologies and will help inform the future designs of interactive, connected toys and gadgets. We conclude with recommendations for parents, designers, and policy makers.",
+    "keywords": [
+      "children",
+      "connected toys",
+      "parents",
+      "privacy"
+    ],
+    "affiliations": [],
+    "notes": "",
+    "ai": "",
+    "rating": 4,
+    "add_order": 4,
+    "imgs": []
+  }
+]
