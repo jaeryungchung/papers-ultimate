@@ -3,7 +3,7 @@
 
 # AI Analysis: WrightHere: Supporting Children's Creative Writing with AI-Infused Interactive 3D Environment
 
-_User notes: [chung2025wrighthere.md](chung2025wrighthere.md)_ · [Full PDF](chung2025wrighthere.pdf)
+[Full PDF](chung2025wrighthere.pdf)
 
 ---
 

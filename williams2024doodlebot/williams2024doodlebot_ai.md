@@ -3,7 +3,7 @@
 
 # AI Analysis: Doodlebot: An Educational Robot for Creativity and AI Literacy
 
-_User notes: [williams2024doodlebot.md](williams2024doodlebot.md)_ · [Full PDF](williams2024doodlebot.pdf)
+[Full PDF](williams2024doodlebot.pdf)
 
 ---
 

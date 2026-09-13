@@ -3,13 +3,14 @@
 .env.*
 
 # ─── Paper PDFs — copyrighted + large (~30MB); site builds fine without them
-**/*.pdf
+# **/*.pdf
 
 # ─── Generated site — GitHub Actions rebuilds this on every push
 site/
 
-# ─── Local-only state ───────────────────────────────────────
-layout.json
+# NOTE: layout.json and ratings.json are NOT ignored — they hold the sidebar
+# order and star ratings, and must be committed for the deployed site to
+# reflect local changes. See README's GitHub Pages section.
 
 # ─── Python ─────────────────────────────────────────────────
 __pycache__/

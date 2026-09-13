@@ -3,7 +3,7 @@
 
 # AI Analysis: Beyond Productivity: Rethinking the Impact of Creativity Support Tools
 
-_User notes: [rhys2025beyond.md](rhys2025beyond.md)_ · [Full PDF](rhys2025beyond.pdf)
+[Full PDF](rhys2025beyond.pdf)
 
 ---
 

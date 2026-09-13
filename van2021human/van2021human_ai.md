@@ -3,7 +3,7 @@
 
 # AI Analysis: Human-AI interaction: intermittent, continuous, and proactive
 
-_User notes: [van2021human.md](van2021human.md)_ · [Full PDF](van2021human.pdf)
+[Full PDF](van2021human.pdf)
 
 ---
 

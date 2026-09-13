@@ -1,5 +1,5 @@
 # Paper Library — Status
-_Last updated: 2026-09-10 17:03_
+_Last updated: 2026-09-13 15:29_
 
 ---
 
@@ -7,10 +7,14 @@ _Last updated: 2026-09-10 17:03_
 
 | Metric | Value |
 |--------|-------|
-| Total papers (bib entries) | 4 |
-| PDFs present | 4 / 4 |
-| AI analysis done | 2 / 4 |
+| Total papers (bib entries) | 6 |
+| PDFs present | 5 / 6 |
+| AI analysis done | 2 / 6 |
 | Total screenshots indexed | 1 |
+
+## ⚠️ Warnings
+
+- ⚠️  **Missing PDF** for `chung2025toyteller` — save as `chung2025toyteller/chung2025toyteller.pdf`
 
 ## Papers
 
@@ -67,6 +71,34 @@ _van Berkel, Niels and Skov, Mikael B. and Kjeldskov, Jesper_
 | PDF | ✓ |
 | Notes | ✓ |
 | AI Analysis | ✗ — run `python papers.py analyze van2021human` |
+| Screenshots | 0 file(s) |
+| Affiliations | _unknown_ |
+
+### ✅ `mcreynolds2017toys`
+
+**Toys that Listen: A Study of Parents, Children, and Internet-Connected Toys**  
+_McReynolds, Emily and Hubbard, Sarah and Lau, Timothy and Saraf, Aditya and Cakmak, Maya and Roesner, Franziska_  
+2017 · Proceedings of the 2017 CHI Conference on Human Factors in Computing Systems
+
+| | |
+|-|-|
+| PDF | ✓ |
+| Notes | ✓ |
+| AI Analysis | ✗ — run `python papers.py analyze mcreynolds2017toys` |
+| Screenshots | 0 file(s) |
+| Affiliations | `<University_of_Washington>` |
+
+### 🔴 `chung2025toyteller`
+
+**Toyteller: AI-powered Visual Storytelling Through Toy-Playing with Character Symbols**  
+_Chung, John Joon Young and Roemmele, Melissa and Kreminski, Max_  
+2025 · Proceedings of the 2025 CHI Conference on Human Factors in Computing Systems
+
+| | |
+|-|-|
+| PDF | ✗ missing — add to `chung2025toyteller/chung2025toyteller.pdf` |
+| Notes | ✓ |
+| AI Analysis | ✗ — run `python papers.py analyze chung2025toyteller` |
 | Screenshots | 0 file(s) |
 | Affiliations | _unknown_ |
 

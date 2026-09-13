@@ -38,6 +38,8 @@ def load_env():
 load_env()
 
 # ─── bib parser ──────────────────────────────────────────────────────────────
+# NOTE: template.bib is the source of truth and must stay read-only from this
+# codebase — only ever .read_text() it here, never .write_text().
 def parse_bib(bib_path=BIB_FILE):
     text = bib_path.read_text(encoding="utf-8")
     entries = {}
@@ -97,14 +99,12 @@ def init_paper_folder(key, entries, pdf_src=None):
 
     md = folder / f"{key}.md"
     if not md.exists():
-        venue = f.get("booktitle") or f.get("journal", "")
+        # No title/author/venue header here — that's already on the slide
+        # from template.bib. The Edit-tab Save in web_server.py rewrites this
+        # file as just these four sections, so keep the on-disk template in
+        # sync with that shape.
         md.write_text(
-            f"# {f.get('title', key)}\n\n"
-            f"**Authors:** {f.get('author', '')}\n"
-            f"**Year:** {f.get('year', '')}\n"
-            f"**Venue:** {venue}\n"
-            f"**DOI:** {f.get('doi', '')}\n\n"
-            f"---\n\n## Notes\n\n\n\n## Key Points\n\n- \n\n## Relevance\n\n\n",
+            "## Quotes\n\n\n\n## My Thoughts\n\n\n\n## Sense\n\n\n\n## Tags\n\n\n",
             encoding="utf-8"
         )
         print(f"    📝  {key}/{key}.md")
@@ -117,7 +117,7 @@ def init_paper_folder(key, entries, pdf_src=None):
             f"<!-- AI Analysis: {key} -->\n"
             f"<!-- See also: [{key}.md]({key}.md) -->\n\n"
             f"# AI Analysis: {title}\n\n"
-            f"_User notes: [{key}.md]({key}.md)_ · [Full PDF]({key}.pdf)\n\n"
+            f"[Full PDF]({key}.pdf)\n\n"
             f"---\n\n"
             f"## Affiliations\n\n"
             f"<!-- Tag each author's institution: <MIT> <KAIST> <Aalborg> etc. -->\n"
@@ -279,6 +279,15 @@ def analyze_paper(key, show_prompt=False):
     )
     analysis = resp.content[0].text
 
+    # ai_file.md is a master file the user can hand-edit (e.g. fixing a
+    # wrong/missing Affiliations tag) — don't let a re-run of `analyze`
+    # clobber a manually-corrected affiliation with a fresh "<unknown>".
+    old_affiliations = parse_affiliations(key)
+    if old_affiliations and ai_file.exists():
+        old_block_m = re.search(r'(## Affiliations\n.*?)(?=\n## |\n---|\Z)', ai_file.read_text(encoding="utf-8"), re.DOTALL)
+        if old_block_m:
+            analysis = re.sub(r'## Affiliations\n.*?(?=\n## |\Z)', old_block_m.group(1).strip() + '\n\n', analysis, count=1, flags=re.DOTALL)
+
     # parse affiliations from analysis and write into the Affiliations section
     pat = _named_pattern(key)
     imgs = sorted(f2.name for f2 in folder.iterdir() if pat.match(f2.name))
@@ -288,7 +297,7 @@ def analyze_paper(key, show_prompt=False):
         f"<!-- AI Analysis: {key} – {datetime.now():%Y-%m-%d %H:%M} -->\n"
         f"<!-- See also: [{key}.md]({key}.md) -->\n\n"
         f"# AI Analysis: {title}\n\n"
-        f"_User notes: [{key}.md]({key}.md)_ · [Full PDF]({key}.pdf)\n\n"
+        f"[Full PDF]({key}.pdf)\n\n"
         f"---\n\n"
         f"{analysis}\n\n"
         f"---\n\n"

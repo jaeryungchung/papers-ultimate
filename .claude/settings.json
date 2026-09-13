@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node test2.js)",
+      "Bash(python3 papers.py serve 5099)",
+      "Bash(curl -s http://localhost:5099/api/papers)",
+      "Bash(python3 -c \"import json,sys; print\\(len\\(json.load\\(sys.stdin\\)\\)\\)\")"
+    ]
+  }
+}
