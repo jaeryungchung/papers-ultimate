@@ -1,5 +1,5 @@
 # Paper Library — Status
-_Last updated: 2026-09-13 15:29_
+_Last updated: 2026-09-13 16:33_
 
 ---
 
@@ -7,14 +7,10 @@ _Last updated: 2026-09-13 15:29_
 
 | Metric | Value |
 |--------|-------|
-| Total papers (bib entries) | 6 |
-| PDFs present | 5 / 6 |
-| AI analysis done | 2 / 6 |
+| Total papers (bib entries) | 7 |
+| PDFs present | 7 / 7 |
+| AI analysis done | 2 / 7 |
 | Total screenshots indexed | 1 |
-
-## ⚠️ Warnings
-
-- ⚠️  **Missing PDF** for `chung2025toyteller` — save as `chung2025toyteller/chung2025toyteller.pdf`
 
 ## Papers
 
@@ -86,9 +82,9 @@ _McReynolds, Emily and Hubbard, Sarah and Lau, Timothy and Saraf, Aditya and Cak
 | Notes | ✓ |
 | AI Analysis | ✗ — run `python papers.py analyze mcreynolds2017toys` |
 | Screenshots | 0 file(s) |
-| Affiliations | `<University_of_Washington>` |
+| Affiliations | _unknown_ |
 
-### 🔴 `chung2025toyteller`
+### ✅ `chung2025toyteller`
 
 **Toyteller: AI-powered Visual Storytelling Through Toy-Playing with Character Symbols**  
 _Chung, John Joon Young and Roemmele, Melissa and Kreminski, Max_  
@@ -96,9 +92,23 @@ _Chung, John Joon Young and Roemmele, Melissa and Kreminski, Max_
 
 | | |
 |-|-|
-| PDF | ✗ missing — add to `chung2025toyteller/chung2025toyteller.pdf` |
+| PDF | ✓ |
 | Notes | ✓ |
 | AI Analysis | ✗ — run `python papers.py analyze chung2025toyteller` |
+| Screenshots | 0 file(s) |
+| Affiliations | _unknown_ |
+
+### ✅ `long2020whatisailiteracy`
+
+**What is AI Literacy? Competencies and Design Considerations**  
+_Long, Duri and Magerko, Brian_  
+2020 · Proceedings of the 2020 CHI Conference on Human Factors in Computing Systems
+
+| | |
+|-|-|
+| PDF | ✓ |
+| Notes | ✓ |
+| AI Analysis | ✗ — run `python papers.py analyze long2020whatisailiteracy` |
 | Screenshots | 0 file(s) |
 | Affiliations | _unknown_ |
 

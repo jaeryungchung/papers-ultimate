@@ -24,6 +24,7 @@ BASE_DIR  = Path(__file__).parent
 BIB_FILE  = BASE_DIR / "template.bib"
 LAYOUT    = BASE_DIR / "layout.json"
 STATUS_MD = BASE_DIR / "status.md"
+PDF_DIR   = BASE_DIR / "000_new_pdfs"  # drop new PDFs here for `sync` to pick up
 
 # ─── .env loader ─────────────────────────────────────────────────────────────
 def load_env():
@@ -51,6 +52,39 @@ def parse_bib(bib_path=BIB_FILE):
         entries[key] = f
     return entries
 
+def bib_warnings(bib_path=BIB_FILE):
+    """Sanity-check template.bib for mistakes that make an entry silently
+    vanish or render with missing data (a malformed entry just fails the
+    parse_bib() regex with no error otherwise)."""
+    text = bib_path.read_text(encoding="utf-8")
+    warnings = []
+
+    starts = re.findall(r'@\w+\s*\{\s*([^,\s}]*)', text)
+    parsed = parse_bib(bib_path)
+    missing = [k for k in starts if k and k not in parsed]
+    if missing:
+        warnings.append(
+            "template.bib: " + ", ".join(sorted(set(missing))) +
+            " didn't parse — check for a missing comma right after the key, or a brace mismatch."
+        )
+
+    for key, f in parsed.items():
+        missing_fields = [name for name in ('title', 'author', 'year') if not f.get(name)]
+        if missing_fields:
+            warnings.append(f"'{key}': missing {', '.join(missing_fields)}.")
+
+    for m in re.finditer(r'@\w+\{(\w+),(.*?)(?=\n@|\Z)', text, re.DOTALL):
+        key, body = m.group(1), m.group(2)
+        # body includes the entry's own closing "}" (captured up to the next
+        # "@" or EOF), so a well-formed entry is off by exactly one brace.
+        stripped = body.rstrip()
+        if stripped.endswith('}'):
+            stripped = stripped[:-1]
+        if stripped.count('{') != stripped.count('}'):
+            warnings.append(f"'{key}': braces look unbalanced — a field value may be missing a closing brace.")
+
+    return warnings
+
 # ─── pdf utils ───────────────────────────────────────────────────────────────
 def get_pdf_title(pdf_path):
     for mod in ('pypdf', 'PyPDF2'):
@@ -70,16 +104,32 @@ def word_overlap(a, b):
     return len(wa & wb) / max(len(wa), len(wb)) if wa and wb else 0.0
 
 def find_loose_pdfs():
-    return list(BASE_DIR.glob("*.pdf"))
+    PDF_DIR.mkdir(exist_ok=True)
+    return list(PDF_DIR.glob("*.pdf")) + list(BASE_DIR.glob("*.pdf"))
+
+def doi_variants(doi):
+    """Publisher-downloaded PDFs are often just named after the DOI (with '/'
+    swapped for a separator, or just the suffix after it) — e.g. a DOI of
+    10.1145/3706598.3713435 shows up as a file named 3706598.3713435.pdf."""
+    doi = (doi or "").strip().lower()
+    if not doi:
+        return []
+    variants = {doi, doi.replace('/', '.'), doi.replace('/', '_'), doi.replace('/', '-')}
+    if '/' in doi:
+        variants.add(doi.split('/', 1)[1])
+    return [v for v in variants if v]
 
 def match_pdf_to_entries(pdf_path, entries):
     pdf_title = get_pdf_title(pdf_path) or ""
+    stem_lower = pdf_path.stem.lower()
     best_key, best_score = None, 0.0
     for key, f in entries.items():
+        doi_score = 1.0 if any(v in stem_lower for v in doi_variants(f.get("doi", ""))) else 0.0
         score = max(
             word_overlap(pdf_title, f.get("title", "")),
             word_overlap(pdf_path.stem, key) * 0.7,
             word_overlap(pdf_path.stem, f.get("title", "")) * 0.4,
+            doi_score,
         )
         if score > best_score:
             best_score, best_key = score, key
@@ -111,26 +161,11 @@ def init_paper_folder(key, entries, pdf_src=None):
 
     ai = folder / f"{key}_ai.md"
     if not ai.exists():
-        title = f.get("title", key)
-        author = f.get("author", "")
-        ai.write_text(
-            f"<!-- AI Analysis: {key} -->\n"
-            f"<!-- See also: [{key}.md]({key}.md) -->\n\n"
-            f"# AI Analysis: {title}\n\n"
-            f"[Full PDF]({key}.pdf)\n\n"
-            f"---\n\n"
-            f"## Affiliations\n\n"
-            f"<!-- Tag each author's institution: <MIT> <KAIST> <Aalborg> etc. -->\n"
-            f"<!-- Authors: {author[:120]} -->\n"
-            f"<unknown>\n\n"
-            f"---\n\n"
-            f"## Summary\n\n"
-            f"_Run `python papers.py analyze {key}` to generate AI analysis._\n\n"
-            f"## Screenshots\n\n"
-            f"_Drop screenshots here, then run `python papers.py imgs {key}` or `python papers.py imgs`_\n\n"
-            f"---\n",
-            encoding="utf-8"
-        )
+        # Left completely empty — the AI Analysis tab only shows something
+        # once `analyze` actually writes real content (Summary, Affiliations,
+        # etc). No placeholder boilerplate to display or to accidentally
+        # treat as "already analyzed".
+        ai.write_text("", encoding="utf-8")
         print(f"    🤖  {key}/{key}_ai.md")
 
     return folder
@@ -171,6 +206,13 @@ def _update_ai_screenshots(key):
     )
     ai.write_text(content, encoding="utf-8")
 
+# ─── AI-analysis status ────────────────────────────────────────────────────────
+def has_ai_analysis(key):
+    """True once `_ai.md` actually has content — it starts empty and only gets
+    written by `analyze`, so file-exists alone isn't enough."""
+    ai = BASE_DIR / key / f"{key}_ai.md"
+    return ai.exists() and bool(ai.read_text(encoding="utf-8").strip())
+
 # ─── affiliation parser ───────────────────────────────────────────────────────
 def parse_affiliations(key):
     """Extract <Tag> style affiliations from _ai.md Affiliations section.
@@ -184,7 +226,9 @@ def parse_affiliations(key):
     return [t.strip() for t in tags if t.strip().lower() not in ('unknown','br','p','em','strong','a')]
 
 # ─── AI analysis ─────────────────────────────────────────────────────────────
-ANALYSIS_PROMPT = """You are analyzing an academic paper. The user has provided their own reading notes below.
+ANALYSIS_PROMPT = """You are analyzing an academic paper. The user has provided their own reading notes below —
+use them to inform your analysis (e.g. what to emphasize in Summary/Core Contributions), but don't write a
+separate section calling out the connection; just fold that understanding into the sections below.
 
 ## User Notes
 {notes}
@@ -211,9 +255,6 @@ Main results and takeaways.
 
 ## Limitations & Future Work
 What the authors acknowledge as limitations, and directions they suggest.
-
-## Connection to User Notes
-How this paper relates to the notes the user wrote (if notes are empty, say so).
 
 ## Related Work Cited
 3–5 key cited works most relevant to the paper's contribution (title + authors, no need for full ref).
@@ -319,8 +360,7 @@ def write_status_md(entries, loose_orphans=None):
 
     total = len(entries)
     has_pdf = sum(1 for k in entries if (BASE_DIR/k/f"{k}.pdf").exists())
-    has_ai  = sum(1 for k in entries if (BASE_DIR/k/f"{k}_ai.md").exists()
-                  and "python papers.py analyze" not in (BASE_DIR/k/f"{k}_ai.md").read_text(encoding="utf-8"))
+    has_ai  = sum(1 for k in entries if has_ai_analysis(k))
     has_imgs = sum(
         len(list((BASE_DIR/k).glob(f"{k}_*.png")) + list((BASE_DIR/k).glob(f"{k}_*.jpg")))
         for k in entries if (BASE_DIR/k).exists()
@@ -337,7 +377,7 @@ def write_status_md(entries, loose_orphans=None):
     ]
 
     # warnings
-    warnings = []
+    warnings = [f"⚠️  **template.bib**: {w}" for w in bib_warnings()]
     if loose_orphans:
         for p in loose_orphans:
             warnings.append(f"⚠️  **Unmatched PDF** (no bib entry found): `{p.name}` — add a `@article{{...}}` entry to `template.bib`")
@@ -353,8 +393,7 @@ def write_status_md(entries, loose_orphans=None):
     for k, f in entries.items():
         folder = BASE_DIR / k
         pdf_ok = (folder/f"{k}.pdf").exists()
-        ai_file = folder/f"{k}_ai.md"
-        ai_ok = ai_file.exists() and "python papers.py analyze" not in ai_file.read_text(encoding="utf-8") if ai_file.exists() else False
+        ai_ok = has_ai_analysis(k)
         pat = _named_pattern(k)
         n_imgs = len(list(folder.glob(f"{k}_*.png"))+list(folder.glob(f"{k}_*.jpg"))) if folder.exists() else 0
         aff = parse_affiliations(k)
@@ -400,6 +439,13 @@ def cmd_sync(args):
     loose   = find_loose_pdfs()
     print(f"Bib entries: {len(entries)}  |  Loose PDFs: {len(loose)}\n")
 
+    bwarn = bib_warnings()
+    if bwarn:
+        print("⚠️  template.bib issues:")
+        for w in bwarn:
+            print(f"    - {w}")
+        print()
+
     used = set()
     for key in entries:
         folder = BASE_DIR / key
@@ -434,9 +480,7 @@ def cmd_status(args):
     for key, f in entries.items():
         folder = BASE_DIR / key
         n_imgs = len(list(folder.glob(f"{key}_*.png"))+list(folder.glob(f"{key}_*.jpg"))) if folder.exists() else 0
-        ai_ok = False
-        ai_f = folder/f"{key}_ai.md"
-        if ai_f.exists(): ai_ok = "python papers.py analyze" not in ai_f.read_text(encoding="utf-8")
+        ai_ok = has_ai_analysis(key)
         aff = parse_affiliations(key)
         aff_str = ",".join(aff[:2]) if aff else "-"
         print(f"  {key:<24}"
@@ -456,11 +500,7 @@ def cmd_analyze(args):
 def cmd_analyze_all(args):
     show = getattr(args, 'show_prompt', False)
     entries = parse_bib()
-    pending = []
-    for key in entries:
-        ai = BASE_DIR / key / f"{key}_ai.md"
-        if not ai.exists() or "python papers.py analyze" in ai.read_text(encoding="utf-8"):
-            pending.append(key)
+    pending = [key for key in entries if not has_ai_analysis(key)]
     if not pending:
         print("✅  All papers already have AI analysis."); return
     print(f"Found {len(pending)} paper(s) to analyze: {', '.join(pending)}\n")

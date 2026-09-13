@@ -1,12 +1,3 @@
-<!-- AI Analysis: chung2025wrighthere – 2026-09-10 16:50 -->
-<!-- See also: [chung2025wrighthere.md](chung2025wrighthere.md) -->
-
-# AI Analysis: WrightHere: Supporting Children's Creative Writing with AI-Infused Interactive 3D Environment
-
-[Full PDF](chung2025wrighthere.pdf)
-
----
-
 ## Summary
 WrightHere is a generative AI-infused creative writing system that generates interactive 3D environments from children's written stories, allowing users to explore scenes, interact with characters through dialogue, and gather inspiration to overcome writer's block. The system supports the cyclical nature of creative writing through two modes—Writer Mode for composition and Dive-in Mode for exploration—enabling seamless transitions between imagination and story creation.
 
@@ -49,12 +40,6 @@ The user notes are empty with no key points or relevance filled in. The paper pr
 - Qin et al. (2024) - "CharacterMeet: Supporting Creative Writers' Entire Story Character Construction Processes" (LLM-powered character interaction)
 - Fan et al. (2024) - "StoryPrompt: Exploring the Design Space of an AI-Empowered Creative Storytelling System for Elementary Children"
 - Gonçalves & Campos (2018) - "Mild Place Illusion: A Virtual Reality Factor to Spark Creativity in Writing" (VR for creative writing)
-
----
-
-## Screenshots
-
-_No screenshots yet._
 
 ---
 _Generated 2026-09-10 by Claude (model: claude-opus-4-5)_

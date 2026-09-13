@@ -1,12 +1,3 @@
-<!-- AI Analysis: rhys2025beyond – 2026-09-10 16:47 -->
-<!-- See also: [rhys2025beyond.md](rhys2025beyond.md) -->
-
-# AI Analysis: Beyond Productivity: Rethinking the Impact of Creativity Support Tools
-
-[Full PDF](rhys2025beyond.pdf)
-
----
-
 ## Summary
 This paper presents a systematic review of outcome measures used in 173 empirical studies of Creativity Support Tools (CSTs) from the ACM Digital Library (2015–2024). The authors find that while user experience (90%) and creative artefact quality (54%) are frequently measured, user-centric benefits like well-being, self-reflection, and skill development are rarely assessed (15%). They argue for a more holistic approach to CST evaluation that considers benefits to users themselves, not just productivity outcomes.
 
@@ -59,11 +50,6 @@ The user's notes are empty—no key points, relevance, or personal annotations w
 - **Remy et al. (2020)** - Prior review of CST evaluation methodologies (differentiated from current work's focus on outcome measures)
 - **Lawton et al. (2023)** - Mixed-Initiative Creativity Support Index (MICSI) - extends CSI for human-AI co-creation contexts
 
----
-
-## Screenshots
-
-![rhys2025beyond_01.png](rhys2025beyond_01.png)
 
 ---
 _Generated 2026-09-10 by Claude (model: claude-opus-4-5)_

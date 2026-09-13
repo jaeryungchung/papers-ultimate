@@ -8,6 +8,7 @@ from datetime import datetime
 BASE_DIR = Path(__file__).parent
 LAYOUT_FILE  = BASE_DIR / "layout.json"
 RATINGS_FILE = BASE_DIR / "ratings.json"
+MASTER_FILE  = BASE_DIR / "master_notes.md"
 
 # ─── bib parser ───────────────────────────────────────────────────────────────
 # NOTE: template.bib is the source of truth and must stay read-only from this
@@ -26,6 +27,39 @@ def parse_bib():
 def bib_order():
     text = (BASE_DIR / "template.bib").read_text(encoding='utf-8')
     return re.findall(r'@\w+\{(\w+),', text)
+
+def bib_warnings():
+    """Sanity-check template.bib for mistakes that make an entry silently
+    vanish or render with missing data (a malformed entry just fails the
+    parse_bib() regex with no error otherwise)."""
+    text = (BASE_DIR / "template.bib").read_text(encoding='utf-8')
+    warnings = []
+
+    starts = re.findall(r'@\w+\s*\{\s*([^,\s}]*)', text)
+    parsed = parse_bib()
+    missing = [k for k in starts if k and k not in parsed]
+    if missing:
+        warnings.append(
+            "template.bib: " + ", ".join(sorted(set(missing))) +
+            " didn't parse — check for a missing comma right after the key, or a brace mismatch."
+        )
+
+    for key, f in parsed.items():
+        missing_fields = [name for name in ('title', 'author', 'year') if not f.get(name)]
+        if missing_fields:
+            warnings.append(f"'{key}': missing {', '.join(missing_fields)}.")
+
+    for m in re.finditer(r'@\w+\{(\w+),(.*?)(?=\n@|\Z)', text, re.DOTALL):
+        key, body = m.group(1), m.group(2)
+        # body includes the entry's own closing "}" (captured up to the next
+        # "@" or EOF), so a well-formed entry is off by exactly one brace.
+        stripped = body.rstrip()
+        if stripped.endswith('}'):
+            stripped = stripped[:-1]
+        if stripped.count('{') != stripped.count('}'):
+            warnings.append(f"'{key}': braces look unbalanced — a field value may be missing a closing brace.")
+
+    return warnings
 
 # ─── venue short name ─────────────────────────────────────────────────────────
 VENUE_PATTERNS = [
@@ -85,10 +119,12 @@ def parse_affiliations(key):
     return found[:5]
 
 # ─── notes sections (Quotes / My Thoughts / Sense / Tags) ─────────────────────
+def _note_section_pattern(header):
+    return re.compile(rf'^##[ \t]*{re.escape(header)}[ \t]*\n(.*?)(?=\n##[ \t]|\Z)', re.DOTALL | re.MULTILINE)
+
 def parse_note_sections(raw_md):
     def extract(header):
-        pat = re.compile(rf'^##[ \t]*{re.escape(header)}[ \t]*\n(.*?)(?=\n##[ \t]|\Z)', re.DOTALL | re.MULTILINE)
-        m = pat.search(raw_md)
+        m = _note_section_pattern(header).search(raw_md)
         return m.group(1).strip() if m else ''
     tags_raw = extract('Tags')
     tags = [t.strip() for t in re.split(r'[,\n]', tags_raw) if t.strip()]
@@ -97,7 +133,23 @@ def parse_note_sections(raw_md):
         'thoughts': extract('My Thoughts'),
         'apply':    extract('Sense'),
         'tags':     tags,
+        'abstract': extract('Abstract'),
     }
+
+def save_note_sections(key, updates):
+    """Merge {header: content} into {key}.md, touching only those headers —
+    editing Abstract independently from Quotes/Thoughts/Sense/Tags (or vice
+    versa) must never clobber the sections it doesn't know about."""
+    md_file = BASE_DIR / key / f"{key}.md"
+    text = md_file.read_text(encoding='utf-8') if md_file.exists() else ''
+    for header, content in updates.items():
+        new_block = f"## {header}\n\n{content}\n\n"
+        if _note_section_pattern(header).search(text):
+            text = _note_section_pattern(header).sub(lambda _: new_block, text, count=1)
+        else:
+            text = text.rstrip()
+            text = (text + "\n\n" if text else "") + new_block
+    md_file.write_text(text, encoding='utf-8')
 
 # ─── ratings ──────────────────────────────────────────────────────────────────
 def load_ratings():
@@ -109,11 +161,11 @@ def save_ratings(ratings):
     RATINGS_FILE.write_text(json.dumps(ratings, indent=2, ensure_ascii=False), encoding='utf-8')
 
 def get_rating(key):
-    return load_ratings().get(key, 4)
+    return load_ratings().get(key, 0)
 
 def set_rating(key, value):
     r = load_ratings()
-    r[key] = max(1, min(5, int(value)))
+    r[key] = max(0, min(3, int(value)))
     save_ratings(r)
 
 # ─── paper data ───────────────────────────────────────────────────────────────
@@ -156,6 +208,7 @@ def get_paper(key):
         "venue_full":   venue_full,
         "doi":          fields.get('doi', ''),
         "abstract":     fields.get('abstract', ''),
+        "abstract_hl":  sections['abstract'] or fields.get('abstract', ''),
         "keywords":     keywords,
         "affiliations": parse_affiliations(key),
         "quotes":       sections['quotes'],
@@ -171,7 +224,11 @@ def get_paper(key):
     }
 
 def all_papers():
-    return [get_paper(k) for k in parse_bib()]
+    # template.bib can hold candidate entries you haven't onboarded yet — a
+    # paper only appears in the library (and the deployed site) once it has a
+    # folder (created by `sync`/`new`). Deleting the folder un-publishes it
+    # without touching the read-only bib.
+    return [get_paper(k) for k in parse_bib() if (BASE_DIR / k).is_dir()]
 
 def get_layout():
     if LAYOUT_FILE.exists():
@@ -180,6 +237,12 @@ def get_layout():
 
 def save_layout(data):
     LAYOUT_FILE.write_text(json.dumps(data, indent=2))
+
+def get_master_notes():
+    return MASTER_FILE.read_text(encoding='utf-8') if MASTER_FILE.exists() else ''
+
+def save_master_notes(content):
+    MASTER_FILE.write_text(content, encoding='utf-8')
 
 def manual_order_map():
     order = get_layout().get("order") or []
@@ -217,6 +280,11 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;background:
 .sb-title{font-family:'Spectral',serif;font-size:16px;font-weight:600;color:#e8eaf6;margin-bottom:10px;}
 #search{width:100%;background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:12px;padding:6px 10px;outline:none;}
 #search::placeholder{color:var(--s-ink2);}
+
+.master-btn{width:100%;text-align:left;background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:12px;font-weight:500;padding:8px 10px;margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.master-btn:hover{border-color:var(--accent);}
+.master-btn.active{background:#1e2a50;border-color:var(--accent);color:#fff;}
+.master-btn.drop-target{border-color:var(--accent);border-style:dashed;}
 
 .filter-toggle-btn{width:100%;text-align:left;background:none;border:none;color:var(--s-ink2);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--s-border);}
 .filter-toggle-btn:hover{color:var(--s-ink);}
@@ -265,7 +333,7 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;background:
 #welcome svg{opacity:.2;}
 #welcome h2{font-family:'Spectral',serif;font-size:22px;color:var(--ink);opacity:.45;}
 #welcome p{font-size:13px;max-width:260px;line-height:1.6;color:var(--ink2);}
-#paper-view{flex:1;overflow-y:auto;padding:32px 40px 60px;position:relative;max-width:900px;margin:0 auto;width:100%;background:var(--bg);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06);}
+#paper-view{flex:1;overflow-y:auto;padding:32px 40px 60px;position:relative;width:100%;background:var(--bg);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06);}
 #paper-view::-webkit-scrollbar{width:5px;}
 #paper-view::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 .slide-counter{position:absolute;top:14px;right:16px;font-size:11px;color:var(--ink2);background:var(--tag-bg);padding:2px 9px;border-radius:10px;}
@@ -281,7 +349,6 @@ a.pill:hover{text-decoration:underline;}
 .star-btn{background:none;border:none;cursor:pointer;font-size:20px;padding:0 1px;color:#ccc;transition:color .1s;line-height:1;}
 .star-btn.on{color:var(--star);}
 .star-btn:hover{color:var(--star);}
-.rating-label{font-size:11px;color:var(--ink2);margin-left:6px;}
 
 .aff-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
 .aff-tag{font-size:11px;background:#e8f0fe;color:#3050a0;border-radius:6px;padding:2px 8px;}
@@ -311,13 +378,17 @@ a.pill:hover{text-decoration:underline;}
 .empty-note{color:var(--ink2);font-size:13px;padding:20px 0;}
 .empty-note code{background:var(--tag-bg);padding:2px 6px;border-radius:3px;}
 .empty-note-inline{color:var(--ink2);font-size:13px;opacity:.6;margin-bottom:10px;}
-mark.hl{background:#fde68a;color:#3d2c00;padding:0 2px;border-radius:2px;}
-[data-theme="dark"] mark.hl{background:#7c5e10;color:#ffe9a8;}
+mark.hl{background:#fbc4c4;color:#5c1414;padding:0 2px;border-radius:2px;}
+[data-theme="dark"] mark.hl{background:#6b2323;color:#ffd7d7;}
+
+.cite-pill{display:inline-block;background:var(--tag-bg);color:var(--accent);border-radius:4px;padding:0 5px;font-size:.92em;font-weight:600;text-decoration:none;cursor:pointer;}
+.cite-pill:hover{background:var(--accent);color:#fff;}
 
 .edit-field{margin-bottom:16px;}
 .edit-field label{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:4px;}
 .edit-field .hl-hint{font-weight:400;color:var(--ink2);font-size:11px;}
 .editor-ta{width:100%;height:16vh;font-family:monospace;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--ink);resize:vertical;}
+.editor-ta.drop-target{border-color:var(--accent);border-style:dashed;}
 
 #shots-panel{border-left:1px solid var(--border);overflow-y:auto;background:var(--bg2);padding:12px 8px;display:flex;flex-direction:column;gap:8px;}
 #shots-panel::-webkit-scrollbar{width:4px;}
@@ -327,6 +398,11 @@ mark.hl{background:#fde68a;color:#3d2c00;padding:0 2px;border-radius:2px;}
 .shots-header{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:4px;text-align:center;}
 
 #theme-btn{position:fixed;bottom:16px;right:16px;background:var(--bg2);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:15px;color:var(--ink2);z-index:10;}
+
+#bib-warning{position:fixed;top:0;left:0;right:0;z-index:100;background:#fef3c7;color:#78350f;font-size:12px;padding:8px 16px;border-bottom:1px solid #f59e0b;display:flex;align-items:center;gap:10px;}
+[data-theme="dark"] #bib-warning{background:#4a3a0a;color:#fde68a;border-bottom-color:#92700a;}
+#bib-warning ul{margin:0;padding-left:18px;flex:1;}
+#bib-warning button{background:none;border:1px solid currentColor;border-radius:4px;color:inherit;cursor:pointer;font-size:11px;padding:2px 8px;flex-shrink:0;}
 
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;}
 .lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;}
@@ -343,6 +419,7 @@ mark.hl{background:#fde68a;color:#3d2c00;padding:0 2px;border-radius:2px;}
 
 # ─── HTML body ────────────────────────────────────────────────────────────────
 NEW_HTML_BODY = """
+<div id="bib-warning" hidden><ul id="bib-warning-list"></ul><button onclick="document.getElementById('bib-warning').hidden=true">Dismiss</button></div>
 <div id="shell">
   <aside id="sidebar">
     <div class="sb-head">
@@ -350,6 +427,7 @@ NEW_HTML_BODY = """
       <div class="sb-title">Paper Collection</div>
       <input id="search" type="search" placeholder="Search titles, authors, keywords..."
              oninput="Q.query=this.value; renderList()" autocomplete="off">
+      <button id="master-notes-btn" class="master-btn" onclick="openMaster()">&#x1f4dd; Master Notes</button>
     </div>
     <button class="filter-toggle-btn" id="filter-toggle" onclick="toggleFilters()">
       <span class="filter-arrow">&#x25B6;</span>&nbsp; Sort &amp; Filter
@@ -366,10 +444,6 @@ NEW_HTML_BODY = """
       <div class="filter-group">
         <div class="filter-label">Venue</div>
         <div class="chip-row" id="venue-chips"></div>
-      </div>
-      <div class="filter-group">
-        <div class="filter-label">Keywords</div>
-        <div class="chip-row" id="kw-chips"></div>
       </div>
       <div class="filter-group">
         <div class="filter-label">My Tags</div>
@@ -400,9 +474,10 @@ NEW_HTML_BODY = """
 
 # ─── Shared JS (raw string – no f-string) ─────────────────────────────────────
 NEW_JS_COMMON = r"""
-const Q = { query: '', sort: 'added', venues: new Set(), kws: new Set(), tags: new Set() };
+const Q = { query: '', sort: 'added', venues: new Set(), tags: new Set() };
 let activeKey = null;
 let activeTab = 'notes';
+let lastPaperKey = null;
 let PAPERS = [];
 let customOrder = [];
 let EDIT_MODE = false;
@@ -441,7 +516,6 @@ function filtered() {
     String(p.year).includes(q)
   );
   if (Q.venues.size) list = list.filter(p => Q.venues.has(stripYear(p.venue_short||'')));
-  if (Q.kws.size)    list = list.filter(p => (p.keywords||[]).some(k => Q.kws.has(k)));
   if (Q.tags.size)   list = list.filter(p => (p.tags||[]).some(t => Q.tags.has(t)));
   const cmp = {
     added:     (a,b) => (a.add_order||0) - (b.add_order||0),
@@ -449,7 +523,7 @@ function filtered() {
     year_asc:  (a,b) => a.year - b.year,
     title:     (a,b) => a.title.localeCompare(b.title),
     venue:     (a,b) => (a.venue_short||'').localeCompare(b.venue_short||''),
-    rating:    (a,b) => (b.rating||4) - (a.rating||4),
+    rating:    (a,b) => (b.rating||0) - (a.rating||0),
     custom:    (a,b) => customOrder.indexOf(a.key) - customOrder.indexOf(b.key),
   };
   list.sort(cmp[Q.sort] || cmp.added);
@@ -468,12 +542,11 @@ function toggleFilters() {
 }
 
 function toggleVenue(v) { Q.venues.has(v) ? Q.venues.delete(v) : Q.venues.add(v); renderList(); }
-function toggleKw(k)    { Q.kws.has(k)    ? Q.kws.delete(k)    : Q.kws.add(k);    renderList(); }
 function toggleTag(t)   { Q.tags.has(t)   ? Q.tags.delete(t)   : Q.tags.add(t);   renderList(); }
 
 function starsStr(n) {
   let s = '';
-  for (let i = 1; i <= 5; i++) s += i <= n ? '★' : '☆';
+  for (let i = 1; i <= 3; i++) s += i <= n ? '●' : '○';
   return s;
 }
 
@@ -491,7 +564,7 @@ function renderList() {
         '</div>' +
         '<div class="pl-title">' + escHtml(p.title) + '</div>' +
         '<div class="pl-authors">' + escHtml(p.authors||'') + '</div>' +
-        '<div class="pl-stars">' + starsStr(p.rating||4) + '</div>' +
+        '<div class="pl-stars">' + starsStr(p.rating||0) + '</div>' +
       '</li>'
     ).join('');
     if (EDIT_MODE) {
@@ -528,7 +601,6 @@ function renderList() {
     span.appendChild(btn); af.appendChild(span);
   };
   Q.venues.forEach(v => mkChip(v, () => { Q.venues.delete(v); renderList(); }));
-  Q.kws.forEach(k => mkChip(k, () => { Q.kws.delete(k); renderList(); }));
   Q.tags.forEach(t => mkChip('#'+t, () => { Q.tags.delete(t); renderList(); }));
   af.className = 'active-filters' + (af.children.length ? ' visible' : '');
 }
@@ -542,18 +614,6 @@ function buildFilterChips() {
     el.className = 'fchip'; el.dataset.v = v; el.textContent = v;
     el.addEventListener('click', () => toggleVenue(v));
     vcRow.appendChild(el);
-  });
-  const freq = {};
-  PAPERS.forEach(p => (p.keywords||[]).forEach(k => { freq[k] = (freq[k]||0)+1; }));
-  const topKws = Object.entries(freq).sort((a,b) => b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,16);
-  const kwRow = document.getElementById('kw-chips');
-  kwRow.innerHTML = '';
-  topKws.forEach(([k,n]) => {
-    const el = document.createElement('span');
-    el.className = 'fchip'; el.dataset.k = k;
-    el.innerHTML = escHtml(k) + (n>1 ? ' <small style="opacity:.6">'+n+'</small>' : '');
-    el.addEventListener('click', () => toggleKw(k));
-    kwRow.appendChild(el);
   });
   const tagFreq = {};
   PAPERS.forEach(p => (p.tags||[]).forEach(t => { tagFreq[t] = (tagFreq[t]||0)+1; }));
@@ -594,7 +654,7 @@ function md(src) {
   src = src.replace(/<!--[\s\S]*?-->/g, '');
   src = src.replace(/^#{1,2} (.+)$/gm, '<h2>$1</h2>');
   src = src.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  src = src.replace(/==(.+?)==/g, '<mark class="hl">$1</mark>');
+  src = src.replace(/==([\s\S]+?)==/g, '<mark class="hl">$1</mark>');
   src = src.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   src = src.replace(/\*(.+?)\*/g, '<em>$1</em>');
   src = src.replace(/`(.+?)`/g, '<code>$1</code>');
@@ -644,10 +704,11 @@ function renderShots(imgs, keyName, baseUrl) {
 
 function starsEditHtml(key, rating) {
   let h = '<div class="pv-rating">';
-  for (let i = 1; i <= 5; i++) {
-    h += '<button class="star-btn' + (i<=rating?' on':'') + '" onclick="setRating(\'' + key + '\',' + i + ')" title="' + i + ' star' + (i>1?'s':'') + '">' + (i<=rating?'★':'☆') + '</button>';
+  for (let i = 1; i <= 3; i++) {
+    const next = i === rating ? 0 : i; // clicking the active circle clears it back to 0
+    h += '<button class="star-btn' + (i<=rating?' on':'') + '" onclick="setRating(\'' + key + '\',' + next + ')" title="' + i + '">' + (i<=rating?'●':'○') + '</button>';
   }
-  h += '<span class="rating-label">' + rating + ' / 5</span></div>';
+  h += '</div>';
   return h;
 }
 
@@ -656,8 +717,7 @@ function sectionsHtml(p, renderer) {
     if (!content || !content.trim()) return '';
     return '<h3>' + title + '</h3><div class="prose">' + renderer(content) + '</div>';
   }
-  const html = block('Quotes', p.quotes) + block('My Thoughts', p.thoughts) + block('Sense', p.apply);
-  return html || '<div class="empty-note"><strong>Nothing here yet.</strong></div>';
+  return block('Quotes', p.quotes) + block('My Thoughts', p.thoughts) + block('Sense', p.apply);
 }
 
 function wireHighlight(ta) {
@@ -682,6 +742,43 @@ function wireHighlight(ta) {
     ta.setSelectionRange(newStart, newEnd);
     ta.dispatchEvent(new Event('input'));
   });
+}
+
+function renderMasterView(content) {
+  if (!content || !content.trim()) return '';
+  let html = md(content);
+  html = html.replace(/\[([A-Za-z0-9_]+)\]/g, function(m, key) {
+    const p = PAPERS.find(function(x){ return x.key === key; });
+    if (!p) return m;
+    return '<a class="cite-pill" onclick="openPaper(\'' + key + '\')" title="' + escHtml(p.title) + '">[' + key + ']</a>';
+  });
+  return html;
+}
+
+function wireCitationDrop(ta) {
+  if (!ta) return;
+  ta.addEventListener('dragover', e => { e.preventDefault(); ta.classList.add('drop-target'); });
+  ta.addEventListener('dragleave', () => ta.classList.remove('drop-target'));
+  ta.addEventListener('drop', e => {
+    e.preventDefault();
+    ta.classList.remove('drop-target');
+    const draggedKey = e.dataTransfer.getData('text/plain');
+    if (!draggedKey) return;
+    const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
+    const insert = '[' + draggedKey + ']';
+    ta.value = ta.value.slice(0, pos) + insert + ta.value.slice(pos);
+    const newPos = pos + insert.length;
+    ta.focus();
+    ta.setSelectionRange(newPos, newPos);
+  });
+}
+
+function showBibWarnings(warnings) {
+  const banner = document.getElementById('bib-warning');
+  const list = document.getElementById('bib-warning-list');
+  if (!banner || !list || !warnings || !warnings.length) return;
+  list.innerHTML = warnings.map(w => '<li>&#x26a0; ' + escHtml(w) + '</li>').join('');
+  banner.hidden = false;
 }
 
 document.addEventListener('keydown', e => {
@@ -711,6 +808,17 @@ document.addEventListener('keydown', e => {
     idx = e.key === 'ArrowRight' ? Math.min(btns.length - 1, idx + 1) : Math.max(0, idx - 1);
     e.preventDefault();
     switchTab(btns[idx], btns[idx].dataset.tab);
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    if (!activeKey) return;
+    e.preventDefault();
+    if (activeKey === '__master__') {
+      if (lastPaperKey) openPaper(lastPaperKey);
+    } else {
+      openMaster();
+    }
   }
 });
 
@@ -768,6 +876,7 @@ async function loadPapers() {
   buildFilterChips();
   renderList();
   initShotsResizer();
+  fetch('/api/warnings').then(r => r.json()).then(d => showBibWarnings(d.warnings)).catch(() => {});
 }
 
 function mdWithImages(src, key) {
@@ -779,6 +888,9 @@ function mdWithImages(src, key) {
 
 async function openPaper(key) {
   activeKey = key;
+  lastPaperKey = key;
+  const mb = document.getElementById('master-notes-btn');
+  if (mb) mb.classList.remove('active');
   const resp = await fetch('/api/paper/' + key);
   const p = await resp.json();
   const idx = PAPERS.findIndex(x => x.key === key);
@@ -802,7 +914,7 @@ async function openPaper(key) {
     ? '<div class="tag-row">'+p.tags.map(t=>'<span class="mytag">#'+escHtml(t)+'</span>').join('')+'</div>' : '';
   const doiHtml = p.doi ? '<a class="pill" href="https://doi.org/'+p.doi+'" target="_blank">&#x1f517; DOI</a>' : '';
   const pdfHtml = p.has_pdf ? '<a class="pill" href="/file/'+key+'/'+key+'.pdf" target="_blank">&#x1f4c4; PDF</a>' : '';
-  const rating = p.rating || 4;
+  const rating = p.rating || 0;
 
   view.innerHTML =
     counterHtml+
@@ -823,14 +935,24 @@ async function openPaper(key) {
       '<button class="tab" data-tab="edit" onclick="switchTab(this,\'edit\')">&#x270F; Edit</button>'+
     '</div>'+
     '<div id="tab-notes" class="tab-pane on">'+sectionsHtml(p, s => mdWithImages(s, key))+'</div>'+
-    '<div id="tab-abstract" class="tab-pane"><div class="prose"><p>'+escHtml(p.abstract||'')+'</p></div></div>'+
+    '<div id="tab-abstract" class="tab-pane">'+
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'+
+        '<button onclick="toggleAbstractEdit()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--ink2)">&#x270F; Edit</button>'+
+      '</div>'+
+      '<div id="abstract-view"><div class="prose">'+md(p.abstract_hl||'')+'</div></div>'+
+      '<div id="abstract-edit" hidden>'+
+        '<textarea id="abstract-editor" class="editor-ta" style="height:40vh">'+escHtml(p.abstract_hl||'')+'</textarea>'+
+        '<div style="display:flex;gap:8px;margin-top:8px">'+
+          '<button onclick="saveAbstract(\''+key+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:13px">Save</button>'+
+          '<span id="abstract-save-status" style="font-size:12px;color:var(--ink2);align-self:center"></span>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
     '<div id="tab-ai" class="tab-pane">'+
       '<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'+
         '<button onclick="toggleAiEdit()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--ink2)">&#x270F; Edit</button>'+
       '</div>'+
-      '<div id="ai-view">'+(p.ai
-        ? '<div class="prose">'+mdWithImages(p.ai, key)+'</div>'
-        : '<div class="empty-note"><strong>No AI analysis yet.</strong><br>Run: <code>python papers.py analyze '+key+'</code></div>')+
+      '<div id="ai-view">'+(p.ai ? '<div class="prose">'+mdWithImages(p.ai, key)+'</div>' : '')+
       '</div>'+
       '<div id="ai-edit" hidden>'+
         '<textarea id="ai-editor" class="editor-ta" style="height:50vh">'+escHtml(p.ai||'')+'</textarea>'+
@@ -855,7 +977,7 @@ async function openPaper(key) {
       '</div>'+
     '</div>';
 
-  ['quotes-editor','thoughts-editor','apply-editor','ai-editor'].forEach(id => wireHighlight(document.getElementById(id)));
+  ['quotes-editor','thoughts-editor','apply-editor','ai-editor','abstract-editor'].forEach(id => wireHighlight(document.getElementById(id)));
   activateTab(activeTab);
 }
 
@@ -864,10 +986,9 @@ async function saveNotes(key) {
   const thoughts = document.getElementById('thoughts-editor').value;
   const apply    = document.getElementById('apply-editor').value;
   const tags     = document.getElementById('tags-editor').value;
-  const content = '## Quotes\n\n'+quotes+'\n\n## My Thoughts\n\n'+thoughts+'\n\n## Sense\n\n'+apply+'\n\n## Tags\n\n'+tags+'\n';
   const resp = await fetch('/api/paper/'+key+'/notes', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({content})
+    body: JSON.stringify({quotes, thoughts, apply, tags})
   });
   const r = await resp.json();
   if (r.ok) {
@@ -877,6 +998,29 @@ async function saveNotes(key) {
     if (st) { st.textContent = '✓ Saved'; setTimeout(() => { st.textContent = ''; }, 2000); }
   } else {
     const st = document.getElementById('save-status');
+    if (st) st.textContent = '✗ Error';
+  }
+}
+
+function toggleAbstractEdit() {
+  const view = document.getElementById('abstract-view');
+  const edit = document.getElementById('abstract-edit');
+  if (!view || !edit) return;
+  view.hidden = !view.hidden;
+  edit.hidden = !edit.hidden;
+}
+
+async function saveAbstract(key) {
+  const content = document.getElementById('abstract-editor').value;
+  const resp = await fetch('/api/paper/'+key+'/abstract', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({content})
+  });
+  const r = await resp.json();
+  if (r.ok) {
+    await openPaper(key);
+  } else {
+    const st = document.getElementById('abstract-save-status');
     if (st) st.textContent = '✗ Error';
   }
 }
@@ -904,6 +1048,60 @@ async function saveAi(key) {
   }
 }
 
+async function openMaster() {
+  activeKey = '__master__';
+  renderList();
+  const mb = document.getElementById('master-notes-btn');
+  if (mb) mb.classList.add('active');
+  document.getElementById('welcome').hidden = true;
+  const view = document.getElementById('paper-view');
+  view.hidden = false;
+  renderShots([], null, null);
+
+  const resp = await fetch('/api/master');
+  const data = await resp.json();
+  const content = data.content || '';
+
+  view.innerHTML =
+    '<div class="pv-eyebrow">Master Notes</div>'+
+    '<hr class="divider">'+
+    '<div class="tabs">'+
+      '<button class="tab on" data-tab="notes" onclick="switchTab(this,\'notes\')">Notes</button>'+
+      '<button class="tab" data-tab="edit" onclick="switchTab(this,\'edit\')">&#x270F; Edit</button>'+
+    '</div>'+
+    '<div id="tab-notes" class="tab-pane on">'+renderMasterView(content)+'</div>'+
+    '<div id="tab-edit" class="tab-pane">'+
+      '<div class="edit-field"><label>Scratchpad <span class="hl-hint">(drag a paper here to cite it; select text + Cmd/Ctrl+H to highlight)</span></label>'+
+        '<textarea id="master-editor" class="editor-ta" style="height:55vh">'+escHtml(content)+'</textarea></div>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button onclick="saveMaster()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:13px">Save</button>'+
+        '<span id="master-save-status" style="font-size:12px;color:var(--ink2);align-self:center"></span>'+
+      '</div>'+
+    '</div>';
+
+  const ta = document.getElementById('master-editor');
+  wireHighlight(ta);
+  wireCitationDrop(ta);
+  activateTab(activeTab);
+}
+
+async function saveMaster() {
+  const content = document.getElementById('master-editor').value;
+  const resp = await fetch('/api/master', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({content})
+  });
+  const r = await resp.json();
+  if (r.ok) {
+    await openMaster();
+    const st = document.getElementById('master-save-status');
+    if (st) { st.textContent = '✓ Saved'; setTimeout(() => { st.textContent = ''; }, 2000); }
+  } else {
+    const st = document.getElementById('master-save-status');
+    if (st) st.textContent = '✗ Error';
+  }
+}
+
 async function setRating(key, value) {
   await fetch('/api/paper/'+key+'/rating', {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -911,12 +1109,8 @@ async function setRating(key, value) {
   });
   const idx = PAPERS.findIndex(x => x.key === key);
   if (idx >= 0) PAPERS[idx].rating = value;
-  document.querySelectorAll('.star-btn').forEach(function(btn, i) {
-    btn.classList.toggle('on', i < value);
-    btn.textContent = i < value ? '★' : '☆';
-  });
-  const rl = document.querySelector('.rating-label');
-  if (rl) rl.textContent = value + ' / 5';
+  const pv = document.querySelector('.pv-rating');
+  if (pv) pv.outerHTML = starsEditHtml(key, value);
   const li = document.querySelector('.pl-item[data-key="'+key+'"] .pl-stars');
   if (li) li.textContent = starsStr(value);
 }
@@ -927,6 +1121,8 @@ loadPapers();
 
 # ─── Static JS template ───────────────────────────────────────────────────────
 NEW_JS_STATIC_TPL = NEW_JS_COMMON + """
+let MASTER_CONTENT = '';
+
 (function() {
   function init(papers) {
     PAPERS = papers;
@@ -939,12 +1135,43 @@ NEW_JS_STATIC_TPL = NEW_JS_COMMON + """
     .then(function(r){ return r.json(); })
     .then(init)
     .catch(function() { init(/*PAPERS_JSON*/); });
+  fetch('master.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ MASTER_CONTENT = d.content || ''; })
+    .catch(function() {});
+  fetch('warnings.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ showBibWarnings(d.warnings); })
+    .catch(function() {});
 })();
 
 function setRating(key, value) { /* read-only in static mode */ }
 
+function openMaster() {
+  activeKey = '__master__';
+  renderList();
+  const mb = document.getElementById('master-notes-btn');
+  if (mb) mb.classList.add('active');
+  document.getElementById('welcome').hidden = true;
+  const view = document.getElementById('paper-view');
+  view.hidden = false;
+  renderShots([], null, null);
+
+  view.innerHTML =
+    '<div class="pv-eyebrow">Master Notes</div>'+
+    '<hr class="divider">'+
+    '<div class="tabs">'+
+      '<button class="tab on" data-tab="notes" onclick="switchTab(this,\\'notes\\')">Notes</button>'+
+    '</div>'+
+    '<div id="tab-notes" class="tab-pane on">'+renderMasterView(MASTER_CONTENT)+'</div>';
+  activateTab(activeTab);
+}
+
 function openPaper(key) {
   activeKey = key;
+  lastPaperKey = key;
+  const mb = document.getElementById('master-notes-btn');
+  if (mb) mb.classList.remove('active');
   const p = PAPERS.find(function(x){ return x.key === key; });
   if (!p) return;
   renderList();
@@ -965,7 +1192,7 @@ function openPaper(key) {
   const tagsHtml = (p.tags||[]).length
     ? '<div class="tag-row">'+p.tags.map(function(t){ return '<span class="mytag">#'+escHtml(t)+'</span>'; }).join('')+'</div>' : '';
   const doiHtml = p.doi ? '<a class="pill" href="https://doi.org/'+p.doi+'" target="_blank">&#x1f517; DOI</a>' : '';
-  const rating = p.rating || 4;
+  const rating = p.rating || 0;
 
   const starsHtml2 = starsEditHtml(key, rating);
 
@@ -987,10 +1214,8 @@ function openPaper(key) {
       '<button class="tab" data-tab="ai" onclick="switchTab(this,\\'ai\\')">AI Analysis</button>'+
     '</div>'+
     '<div id="tab-notes" class="tab-pane on">'+sectionsHtml(p, md)+'</div>'+
-    '<div id="tab-abstract" class="tab-pane"><div class="prose"><p>'+escHtml(p.abstract||'<em>No abstract.</em>')+'</p></div></div>'+
-    '<div id="tab-ai" class="tab-pane">'+(p.ai
-      ? '<div class="prose">'+md(p.ai)+'</div>'
-      : '<div class="empty-note"><strong>No AI analysis yet.</strong><br>Run: <code>python papers.py analyze '+key+'</code></div>')+
+    '<div id="tab-abstract" class="tab-pane"><div class="prose">'+(p.abstract_hl ? md(p.abstract_hl) : '')+'</div></div>'+
+    '<div id="tab-ai" class="tab-pane">'+(p.ai ? '<div class="prose">'+md(p.ai)+'</div>' : '')+
     '</div>';
   activateTab(activeTab);
 }
@@ -1031,6 +1256,12 @@ def generate_static():
 
     # Separate papers.json for GitHub Pages fetch
     (site_dir / "papers.json").write_text(papers_json, encoding='utf-8')
+
+    master_json = json.dumps({"content": get_master_notes()}, ensure_ascii=False, indent=2)
+    (site_dir / "master.json").write_text(master_json, encoding='utf-8')
+
+    warnings_json = json.dumps({"warnings": bib_warnings()}, ensure_ascii=False, indent=2)
+    (site_dir / "warnings.json").write_text(warnings_json, encoding='utf-8')
 
     js = NEW_JS_STATIC_TPL.replace('/*PAPERS_JSON*/', papers_json)
 
@@ -1092,6 +1323,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(get_paper(key))
         elif path == '/api/layout':
             self.send_json(get_layout())
+        elif path == '/api/master':
+            self.send_json({"content": get_master_notes()})
+        elif path == '/api/warnings':
+            self.send_json({"warnings": bib_warnings()})
         elif path.startswith('/file/'):
             parts = path[6:].split('/', 1)
             if len(parts) == 2:
@@ -1119,12 +1354,17 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith('/api/paper/') and path.endswith('/notes'):
             key = unquote(path.split('/api/paper/')[1].replace('/notes', ''))
-            md_file = BASE_DIR / key / f"{key}.md"
-            if md_file.exists():
-                md_file.write_text(body.get('content', ''), encoding='utf-8')
-                self.send_json({"ok": True})
-            else:
-                self.send_json({"ok": False, "error": "file not found"}, 404)
+            save_note_sections(key, {
+                'Quotes':      body.get('quotes', ''),
+                'My Thoughts': body.get('thoughts', ''),
+                'Sense':       body.get('apply', ''),
+                'Tags':        body.get('tags', ''),
+            })
+            self.send_json({"ok": True})
+        elif path.startswith('/api/paper/') and path.endswith('/abstract'):
+            key = unquote(path.split('/api/paper/')[1].replace('/abstract', ''))
+            save_note_sections(key, {'Abstract': body.get('content', '')})
+            self.send_json({"ok": True})
         elif path.startswith('/api/paper/') and path.endswith('/ai'):
             key = unquote(path.split('/api/paper/')[1].replace('/ai', ''))
             ai_file = BASE_DIR / key / f"{key}_ai.md"
@@ -1135,10 +1375,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "file not found"}, 404)
         elif path.startswith('/api/paper/') and path.endswith('/rating'):
             key = unquote(path.split('/api/paper/')[1].replace('/rating', ''))
-            set_rating(key, body.get('rating', 4))
+            set_rating(key, body.get('rating', 0))
             self.send_json({"ok": True})
         elif path == '/api/layout':
             save_layout(body)
+            self.send_json({"ok": True})
+        elif path == '/api/master':
+            save_master_notes(body.get('content', ''))
             self.send_json({"ok": True})
         else:
             self.send_response(404); self.end_headers()
