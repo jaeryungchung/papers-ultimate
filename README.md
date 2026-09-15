@@ -28,11 +28,14 @@ Place `template.bib` in this folder with your BibTeX entries.
 python papers.py sync
 ```
 - Reads `template.bib` for all entries
-- Scans **`000_new_pdfs/`** (drop new PDFs here) and this folder for loose PDFs, and matches each to a bib entry by:
-  1. PDF metadata title vs. bib title
-  2. filename vs. bib key / title
-  3. **DOI** — a lot of publisher downloads are just named after the DOI (e.g. `3706598.3713435.pdf` for `10.1145/3706598.3713435`); this is checked too
-- Creates `{key}/` folders, moves + renames matched PDFs to `{key}/{key}.pdf`
+- Scans **`000_new_pdfs/`** (drop new PDFs here) and this folder for loose PDFs, and matches each to a bib entry by (strongest first):
+  1. **DOI** — from the bib `doi` field (or a doi.org `url`), checked against the filename (publisher downloads are often just `3706598.3713435.pdf` for `10.1145/3706598.3713435`) *and* against the DOI printed on the PDF's first pages
+  2. **arXiv id** in the filename (`2405.07089v3.pdf`) vs. `eprint`/`url`
+  3. bib title appearing verbatim in the PDF's first pages
+  4. PDF metadata title / first heading vs. bib title, filename vs. bib key / title
+- Creates `{key}/` folders, moves + renames confidently matched PDFs to `{key}/{key}.pdf`
+- Then, for every folder that still has no PDF, **asks you to pick** one of the remaining loose PDFs (listed with their detected titles, best guess first). Enter skips that paper, `q` stops asking. Pass `--no-pick` to skip the prompt (it's also skipped automatically when stdin isn't a terminal)
+- Needs `pypdf` (`pip install pypdf`) to read titles/DOIs out of the PDFs — without it only filename matching works
 - Creates `{key}/{key}.md` (empty Quotes/My Thoughts/Sense/Tags template) and `{key}/{key}_ai.md` (empty — stays that way until you run `analyze`)
 - Warns about PDFs without a bib entry, and bib entries without a PDF
 - Warns about malformed `template.bib` entries (see **Bib validation** below)

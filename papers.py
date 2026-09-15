@@ -4,6 +4,9 @@ papers.py – Academic Paper Management CLI
 
 Commands:
   sync               Read bib + scan PDFs → organize, warn mismatches, write status.md
+                     Loose PDFs are matched by DOI (filename or printed in the PDF),
+                     arXiv id, or title; for folders still missing a PDF it asks you
+                     to pick one from the loose PDFs (--no-pick to skip the prompt).
   status             Print + write status.md
   analyze <key>      AI summary for one paper (shows prompt)
   analyze-all        AI summary for all papers missing analysis
@@ -86,16 +89,75 @@ def bib_warnings(bib_path=BIB_FILE):
     return warnings
 
 # ─── pdf utils ───────────────────────────────────────────────────────────────
-def get_pdf_title(pdf_path):
+_PDF_INFO_CACHE = {}
+
+def _pdf_reader(pdf_path):
+    import logging
     for mod in ('pypdf', 'PyPDF2'):
         try:
-            m = __import__(mod)
-            r = m.PdfReader(str(pdf_path))
-            t = (r.metadata or {}).get('/Title') or (r.metadata or {}).get('title')
-            if t: return t
+            logging.getLogger(mod).setLevel(logging.ERROR)   # font/xref chatter
+            return __import__(mod).PdfReader(str(pdf_path))
+        except ImportError:
+            continue
+        except Exception:
+            return None
+    return None
+
+_DOI_RE = re.compile(r'10\.\d{4,9}/[^\s"<>\)\]]+', re.I)
+
+def _norm_doi(doi):
+    doi = (doi or "").strip().lower()
+    doi = re.sub(r'^(https?://)?(dx\.)?doi\.org/', '', doi)
+    return doi.rstrip('.,;')
+
+def _norm_text(t):
+    return re.sub(r'[^a-z0-9]+', ' ', (t or "").lower()).strip()
+
+def pdf_info(pdf_path):
+    """Everything we can cheaply learn about a PDF for matching: metadata
+    title, the first couple of pages of text, and any DOIs printed in that
+    text (publisher PDFs almost always stamp the DOI on page 1). Cached
+    because sync asks about the same loose PDF once per bib entry."""
+    key = str(pdf_path)
+    if key in _PDF_INFO_CACHE:
+        return _PDF_INFO_CACHE[key]
+    info = {"title": "", "text": "", "dois": set()}
+    r = _pdf_reader(pdf_path)
+    if r is not None:
+        try:
+            meta = r.metadata or {}
+            t = meta.get('/Title') or meta.get('title') or ""
+            # Word/LaTeX leave junk like "Microsoft Word - out.doc" here
+            if t and not re.match(r'^(microsoft word|untitled|sigchi|acm|doi:)', t.strip().lower()):
+                info["title"] = str(t)
         except Exception:
             pass
-    return None
+        try:
+            info["text"] = "\n".join((pg.extract_text() or "") for pg in r.pages[:2])
+        except Exception:
+            pass
+        info["dois"] = {_norm_doi(d) for d in _DOI_RE.findall(info["text"])}
+        info["dois"] |= {_norm_doi(d) for d in _DOI_RE.findall(str(t or ""))}
+        info["dois"].discard("")
+    _PDF_INFO_CACHE[key] = info
+    return info
+
+def get_pdf_title(pdf_path):
+    return pdf_info(pdf_path)["title"] or None
+
+def pdf_display_title(pdf_path):
+    """Best human-readable guess at what a PDF is, for the sync picker."""
+    info = pdf_info(pdf_path)
+    if info["title"]:
+        return info["title"]
+    for line in info["text"].splitlines():
+        line = line.strip(" :\t-–—")
+        # skip running headers like "Published as a conference paper at ICLR 2026"
+        # or "Int. J. Human-Computer Studies 58 (2003) 583–603"
+        if len(line) > 12 and not re.search(
+                r'proceedings|published as|conference|journal|vol\.|\(\d{4}\)|\d{4}\s*$|^chi\s', line.lower()):
+            return line
+    return ""
 
 def word_overlap(a, b):
     if not a or not b: return 0.0
@@ -105,13 +167,13 @@ def word_overlap(a, b):
 
 def find_loose_pdfs():
     PDF_DIR.mkdir(exist_ok=True)
-    return list(PDF_DIR.glob("*.pdf")) + list(BASE_DIR.glob("*.pdf"))
+    return sorted(PDF_DIR.glob("*.pdf")) + sorted(BASE_DIR.glob("*.pdf"))
 
 def doi_variants(doi):
     """Publisher-downloaded PDFs are often just named after the DOI (with '/'
     swapped for a separator, or just the suffix after it) — e.g. a DOI of
     10.1145/3706598.3713435 shows up as a file named 3706598.3713435.pdf."""
-    doi = (doi or "").strip().lower()
+    doi = _norm_doi(doi)
     if not doi:
         return []
     variants = {doi, doi.replace('/', '.'), doi.replace('/', '_'), doi.replace('/', '-')}
@@ -119,18 +181,56 @@ def doi_variants(doi):
         variants.add(doi.split('/', 1)[1])
     return [v for v in variants if v]
 
+def entry_doi(f):
+    """DOI from the `doi` field, falling back to a doi.org `url`."""
+    doi = _norm_doi(f.get("doi", ""))
+    if not doi:
+        m = _DOI_RE.search(f.get("url", "") or "")
+        doi = _norm_doi(m.group(0)) if m else ""
+    return doi
+
+def entry_arxiv_id(f):
+    """arXiv id (e.g. 2405.07089) from eprint/url/journal, since arXiv PDFs
+    download as <id>v<n>.pdf."""
+    blob = " ".join(f.get(k, "") or "" for k in ("eprint", "arxivid", "url", "journal", "note", "archiveprefix"))
+    if "arxiv" not in blob.lower() and not f.get("eprint"):
+        return ""
+    m = re.search(r'(\d{4}\.\d{4,5})(?:v\d+)?', blob)
+    return m.group(1) if m else ""
+
 def match_pdf_to_entries(pdf_path, entries):
-    pdf_title = get_pdf_title(pdf_path) or ""
+    """Score a loose PDF against bib entries. Strongest → weakest:
+      1.00  DOI in the filename, or the same DOI printed inside the PDF
+      0.95  arXiv id in the filename
+      0.90  the bib title appears verbatim in the PDF's first pages
+      ≤1.0  word overlap between PDF metadata title / first line and bib title
+      ≤0.7  word overlap between filename and bib key / title"""
+    info = pdf_info(pdf_path)
     stem_lower = pdf_path.stem.lower()
+    text_norm = _norm_text(info["text"])
     best_key, best_score = None, 0.0
     for key, f in entries.items():
-        doi_score = 1.0 if any(v in stem_lower for v in doi_variants(f.get("doi", ""))) else 0.0
-        score = max(
-            word_overlap(pdf_title, f.get("title", "")),
-            word_overlap(pdf_path.stem, key) * 0.7,
-            word_overlap(pdf_path.stem, f.get("title", "")) * 0.4,
-            doi_score,
-        )
+        doi = entry_doi(f)
+        score = 0.0
+        if doi:
+            if any(v in stem_lower for v in doi_variants(doi)) or doi in info["dois"]:
+                score = 1.0
+        if score < 0.95:
+            axid = entry_arxiv_id(f)
+            if axid and axid in stem_lower:
+                score = 0.95
+        if score < 0.9:
+            title_norm = _norm_text(f.get("title", ""))
+            if len(title_norm) >= 20 and title_norm in text_norm:
+                score = 0.9
+        if score < 0.9:
+            score = max(
+                score,
+                word_overlap(info["title"], f.get("title", "")),
+                word_overlap(pdf_display_title(pdf_path), f.get("title", "")) * 0.9,
+                word_overlap(pdf_path.stem, key) * 0.7,
+                word_overlap(pdf_path.stem, f.get("title", "")) * 0.4,
+            )
         if score > best_score:
             best_score, best_key = score, key
     return (best_key, best_score) if best_score >= 0.15 else (None, 0.0)
@@ -434,6 +534,40 @@ def write_status_md(entries, loose_orphans=None):
 
 # ─── commands ─────────────────────────────────────────────────────────────────
 
+AUTO_MATCH_MIN = 0.5   # move a loose PDF into a folder without asking above this
+
+def _pick_loose_pdf(key, f, candidates):
+    """Interactive picker for a bib entry whose folder has no PDF. Shows the
+    remaining loose PDFs (best guess first) and lets the user choose one.
+    Returns the chosen Path, None to skip, or 'stop' to stop asking."""
+    scored = []
+    for pdf in candidates:
+        _, score = match_pdf_to_entries(pdf, {key: f})
+        scored.append((score, pdf))
+    scored.sort(key=lambda t: (-t[0], t[1].name.lower()))
+
+    print(f"    ❓  No PDF for {key} — {f.get('title', '')[:70]}")
+    print(f"        Pick a loose PDF (number), Enter = skip, q = stop asking:")
+    for i, (score, pdf) in enumerate(scored, 1):
+        hint = pdf_display_title(pdf)[:60]
+        tag  = f"  ({score:.2f})" if score > 0 else ""
+        print(f"        {i:>2}) {pdf.name}{tag}")
+        if hint:
+            print(f"             {hint}")
+    while True:
+        try:
+            ans = input("        > ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return "stop"
+        if ans == "":
+            return None
+        if ans in ("q", "quit"):
+            return "stop"
+        if ans.isdigit() and 1 <= int(ans) <= len(scored):
+            return scored[int(ans) - 1][1]
+        print("        (enter a number from the list, Enter to skip, or q)")
+
 def cmd_sync(args):
     entries = parse_bib()
     loose   = find_loose_pdfs()
@@ -446,28 +580,63 @@ def cmd_sync(args):
             print(f"    - {w}")
         print()
 
+    # Pass 1 — confident automatic matches (DOI / arXiv id / title in PDF text).
+    # Each loose PDF goes to the entry it scores highest against, so two entries
+    # with similar titles don't fight over the same file.
     used = set()
+    auto = {}   # key -> pdf
+    for pdf in loose:
+        mk, score = match_pdf_to_entries(pdf, entries)
+        if mk and score >= AUTO_MATCH_MIN and not (BASE_DIR / mk / f"{mk}.pdf").exists():
+            prev = auto.get(mk)
+            if prev is None or score > prev[1]:
+                auto[mk] = (pdf, score)
+
+    missing = []
     for key in entries:
         folder = BASE_DIR / key
         print(f"📚  {key}")
         if (folder/f"{key}.pdf").exists():
             init_paper_folder(key, entries)
+            continue
+        pdf, score = auto.get(key, (None, 0.0))
+        if pdf is not None and pdf not in used:
+            print(f"    ↳ matched {pdf.name} (score {score:.2f})")
+            used.add(pdf)
+            init_paper_folder(key, entries, pdf_src=pdf)
         else:
-            matched = None
-            for pdf in loose:
-                if pdf in used: continue
-                mk, score = match_pdf_to_entries(pdf, {key: entries[key]})
-                if mk == key:
-                    print(f"    ↳ matched {pdf.name} (score {score:.2f})")
-                    matched = pdf; used.add(pdf); break
-            init_paper_folder(key, entries, pdf_src=matched)
-            if not matched and not (folder/f"{key}.pdf").exists():
-                print(f"    ⚠️  No PDF — add as {key}/{key}.pdf")
+            init_paper_folder(key, entries)
+            missing.append(key)
+
+    # Pass 2 — folders that exist but still have no PDF: let the user pick one
+    # of the remaining loose PDFs (only when running in a terminal).
+    remaining = [p for p in loose if p not in used]
+    pick = missing and remaining and sys.stdin.isatty() and not getattr(args, "no_pick", False)
+    if pick:
+        print(f"\n{len(missing)} entries without a PDF, {len(remaining)} loose PDFs left.")
+        for key in missing:
+            if not remaining:
+                break
+            choice = _pick_loose_pdf(key, entries[key], remaining)
+            if choice == "stop":
+                break
+            if choice is None:
+                continue
+            used.add(choice)
+            remaining.remove(choice)
+            init_paper_folder(key, entries, pdf_src=choice)
+        print()
+
+    for key in missing:
+        if not (BASE_DIR / key / f"{key}.pdf").exists():
+            print(f"    ⚠️  {key}: No PDF — add as {key}/{key}.pdf")
 
     orphans = [p for p in loose if p not in used]
     if orphans:
         print("\n⚠️  PDFs with no matching bib entry (add to template.bib):")
-        for p in orphans: print(f"    - {p.name}")
+        for p in orphans:
+            hint = pdf_display_title(p)
+            print(f"    - {p.name}" + (f"  —  {hint[:70]}" if hint else ""))
 
     write_status_md(entries, loose_orphans=orphans)
 
@@ -556,7 +725,9 @@ def main():
     )
     sub = p.add_subparsers(dest="cmd")
 
-    sub.add_parser("sync",   help="Organize PDFs, create stubs, write status.md")
+    p_sync = sub.add_parser("sync",   help="Organize PDFs, create stubs, write status.md")
+    p_sync.add_argument("--no-pick", action="store_true",
+                        help="Don't interactively ask which loose PDF belongs to a folder without one")
     sub.add_parser("status", help="Print status + write status.md")
     sub.add_parser("export", help="Generate site/index.html")
 
