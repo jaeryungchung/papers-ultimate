@@ -86,6 +86,33 @@ def bib_warnings(bib_path=BIB_FILE):
         if stripped.count('{') != stripped.count('}'):
             warnings.append(f"'{key}': braces look unbalanced — a field value may be missing a closing brace.")
 
+    warnings += bib_content_warnings(parsed)
+    return warnings
+
+def bib_content_warnings(parsed):
+    """Duplicate entries (same DOI or same title under different keys) and
+    entries with no DOI. Shared by papers.py and web_server.py."""
+    warnings = []
+    by_doi, by_title = {}, {}
+    for key, f in parsed.items():
+        doi = re.sub(r'^(https?://)?(dx\.)?doi\.org/', '', (f.get('doi') or '').strip().lower()).rstrip('.,;')
+        if not doi:
+            m = re.search(r'10\.\d{4,9}/[^\s"<>]+', f.get('url', '') or '', re.I)
+            doi = m.group(0).lower().rstrip('.,;') if m else ''
+        if doi:
+            by_doi.setdefault(doi, []).append(key)
+        else:
+            warnings.append(f"'{key}': no doi field.")
+        title = re.sub(r'[^a-z0-9]+', ' ', (f.get('title') or '').lower()).strip()
+        if title:
+            by_title.setdefault(title, []).append(key)
+    for doi, keys in by_doi.items():
+        if len(keys) > 1:
+            warnings.append(f"duplicate DOI {doi}: {', '.join(keys)} — keep one and delete the rest.")
+    seen_doi_dups = {tuple(k) for k in by_doi.values() if len(k) > 1}
+    for title, keys in by_title.items():
+        if len(keys) > 1 and tuple(keys) not in seen_doi_dups:
+            warnings.append(f"duplicate title \"{parsed[keys[0]].get('title', '')[:60]}\": {', '.join(keys)} — keep one and delete the rest.")
     return warnings
 
 # ─── pdf utils ───────────────────────────────────────────────────────────────

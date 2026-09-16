@@ -1,5 +1,5 @@
 # Paper Library — Status
-_Last updated: 2026-09-15 14:13_
+_Last updated: 2026-09-16 17:13_
 
 ---
 
@@ -7,13 +7,14 @@ _Last updated: 2026-09-15 14:13_
 
 | Metric | Value |
 |--------|-------|
-| Total papers (bib entries) | 17 |
-| PDFs present | 7 / 17 |
-| AI analysis done | 2 / 17 |
+| Total papers (bib entries) | 19 |
+| PDFs present | 7 / 19 |
+| AI analysis done | 2 / 19 |
 | Total screenshots indexed | 1 |
 
 ## ⚠️ Warnings
 
+- ⚠️  **template.bib**: duplicate DOI 10.1007/978-3-030-32523-7_46: heljakka2019toysthatmobilize, heljakka2019toys — keep one and delete the rest.
 - ⚠️  **Unmatched PDF** (no bib entry found): `1-s2.0-S1071581903000235-main.pdf` — add a `@article{...}` entry to `template.bib`
 - ⚠️  **Unmatched PDF** (no bib entry found): `1858171.1858195.pdf` — add a `@article{...}` entry to `template.bib`
 - ⚠️  **Unmatched PDF** (no bib entry found): `2206.04769v1.pdf` — add a `@article{...}` entry to `template.bib`
@@ -39,6 +40,8 @@ _Last updated: 2026-09-15 14:13_
 - ⚠️  **Missing PDF** for `heljakka2019toys` — save as `heljakka2019toys/heljakka2019toys.pdf`
 - ⚠️  **Missing PDF** for `huang2026mosound` — save as `huang2026mosound/huang2026mosound.pdf`
 - ⚠️  **Missing PDF** for `gennari2026phygitalartefacts` — save as `gennari2026phygitalartefacts/gennari2026phygitalartefacts.pdf`
+- ⚠️  **Missing PDF** for `masson2025textoshop` — save as `masson2025textoshop/masson2025textoshop.pdf`
+- ⚠️  **Missing PDF** for `j2026texterial` — save as `j2026texterial/j2026texterial.pdf`
 
 ## Papers
 
@@ -277,6 +280,34 @@ _Gennari, Rosella and Khan, Muhammad Bilal and Melonio, Alessandra and Pellegrin
 | PDF | ✗ missing — add to `gennari2026phygitalartefacts/gennari2026phygitalartefacts.pdf` |
 | Notes | ✓ |
 | AI Analysis | ✗ — run `python papers.py analyze gennari2026phygitalartefacts` |
+| Screenshots | 0 file(s) |
+| Affiliations | _unknown_ |
+
+### 🔴 `masson2025textoshop`
+
+**Textoshop: Interactions Inspired by Drawing Software to Facilitate Text Editing**  
+_Masson, Damien and Kim, Young-Ho and Chevalier, Fanny_  
+2025 · Proceedings of the 2025 CHI Conference on Human Factors in Computing Systems
+
+| | |
+|-|-|
+| PDF | ✗ missing — add to `masson2025textoshop/masson2025textoshop.pdf` |
+| Notes | ✓ |
+| AI Analysis | ✗ — run `python papers.py analyze masson2025textoshop` |
+| Screenshots | 0 file(s) |
+| Affiliations | _unknown_ |
+
+### 🔴 `j2026texterial`
+
+**Texterial: A Text-as-Material Interaction Paradigm for LLM-Mediated Writing**  
+_J Shen, Jocelyn and Marquardt, Nicolai and Romat, Hugo and Hinckley, Ken and Riche, Nathalie and Chevalier, Fanny_  
+2026 · Proceedings of the 2026 CHI Conference on Human Factors in Computing Systems
+
+| | |
+|-|-|
+| PDF | ✗ missing — add to `j2026texterial/j2026texterial.pdf` |
+| Notes | ✓ |
+| AI Analysis | ✗ — run `python papers.py analyze j2026texterial` |
 | Screenshots | 0 file(s) |
 | Affiliations | _unknown_ |
 

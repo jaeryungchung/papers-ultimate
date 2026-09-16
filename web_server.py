@@ -59,6 +59,33 @@ def bib_warnings():
         if stripped.count('{') != stripped.count('}'):
             warnings.append(f"'{key}': braces look unbalanced — a field value may be missing a closing brace.")
 
+    warnings += bib_content_warnings(parsed)
+    return warnings
+
+def bib_content_warnings(parsed):
+    """Duplicate entries (same DOI or same title under different keys) and
+    entries with no DOI. Shared by papers.py and web_server.py."""
+    warnings = []
+    by_doi, by_title = {}, {}
+    for key, f in parsed.items():
+        doi = re.sub(r'^(https?://)?(dx\.)?doi\.org/', '', (f.get('doi') or '').strip().lower()).rstrip('.,;')
+        if not doi:
+            m = re.search(r'10\.\d{4,9}/[^\s"<>]+', f.get('url', '') or '', re.I)
+            doi = m.group(0).lower().rstrip('.,;') if m else ''
+        if doi:
+            by_doi.setdefault(doi, []).append(key)
+        else:
+            warnings.append(f"'{key}': no doi field.")
+        title = re.sub(r'[^a-z0-9]+', ' ', (f.get('title') or '').lower()).strip()
+        if title:
+            by_title.setdefault(title, []).append(key)
+    for doi, keys in by_doi.items():
+        if len(keys) > 1:
+            warnings.append(f"duplicate DOI {doi}: {', '.join(keys)} — keep one and delete the rest.")
+    seen_doi_dups = {tuple(k) for k in by_doi.values() if len(k) > 1}
+    for title, keys in by_title.items():
+        if len(keys) > 1 and tuple(keys) not in seen_doi_dups:
+            warnings.append(f"duplicate title \"{parsed[keys[0]].get('title', '')[:60]}\": {', '.join(keys)} — keep one and delete the rest.")
     return warnings
 
 # ─── venue short name ─────────────────────────────────────────────────────────
@@ -369,6 +396,7 @@ a.pill:hover{text-decoration:underline;}
 .prose h2{font-family:'Spectral',serif;font-size:18px;margin:20px 0 8px;}
 .prose h3{font-size:14px;font-weight:600;margin:16px 0 6px;}
 .prose p{margin-bottom:10px;}
+.md-gap{height:1.4em;}
 .prose ul{padding-left:20px;margin-bottom:10px;}
 .prose li{margin-bottom:4px;}
 .prose code{background:var(--tag-bg);padding:1px 5px;border-radius:3px;font-size:12px;}
@@ -660,7 +688,10 @@ function md(src) {
   src = src.replace(/`(.+?)`/g, '<code>$1</code>');
   src = src.replace(/^---+$/gm, '<hr>');
   src = src.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
-  return src.split(/\n\n+/).map(b => {
+  // Split on blank lines, keeping the separators so that each *extra* blank
+  // line (3+ newlines in a row) becomes a visible gap instead of collapsing.
+  return src.split(/(\n{2,})/).map(b => {
+    if (/^\n{2,}$/.test(b)) return '<div class="md-gap"></div>'.repeat(b.length - 2);
     b = b.trim(); if (!b) return '';
     if (/^<(h[123]|hr|li|ul)/.test(b)) return b.includes('<li>') ? '<ul>'+b+'</ul>' : b;
     return '<p>'+b.replace(/\n/g,' ')+'</p>';
@@ -744,15 +775,27 @@ function wireHighlight(ta) {
   });
 }
 
+function citePill(key) {
+  const p = PAPERS.find(function(x){ return x.key === key; });
+  if (!p) return null;
+  return '<a class="cite-pill" onclick="openPaper(\'' + key + '\')" title="' + escHtml(p.title) + '">[' + key + ']</a>';
+}
+
 function renderMasterView(content) {
   if (!content || !content.trim()) return '';
   let html = md(content);
-  html = html.replace(/\[([A-Za-z0-9_]+)\]/g, function(m, key) {
-    const p = PAPERS.find(function(x){ return x.key === key; });
-    if (!p) return m;
-    return '<a class="cite-pill" onclick="openPaper(\'' + key + '\')" title="' + escHtml(p.title) + '">[' + key + ']</a>';
+  // LaTeX-style citations, written as ~\cite{key} (or \cite{a, b}) so the
+  // notes paste straight into a .tex file. The ~ is LaTeX's non-breaking
+  // space, so it renders as a plain space here.
+  // The older [key] form still works. One combined pass, so a pill produced
+  // for \cite{} isn't re-matched as [key].
+  html = html.replace(/~?\\cite\{([^}]+)\}|\[([A-Za-z0-9_]+)\]/g, function(m, keys, single) {
+    if (single !== undefined) return citePill(single) || m;
+    const pills = keys.split(',').map(function(k){ return k.trim(); }).filter(Boolean)
+      .map(function(k){ return citePill(k) || '[' + escHtml(k) + ']'; });
+    return (m.charAt(0) === '~' ? ' ' : '') + pills.join(' ');
   });
-  return html;
+  return '<div class="prose">' + html + '</div>';
 }
 
 function wireCitationDrop(ta) {
@@ -765,7 +808,7 @@ function wireCitationDrop(ta) {
     const draggedKey = e.dataTransfer.getData('text/plain');
     if (!draggedKey) return;
     const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
-    const insert = '[' + draggedKey + ']';
+    const insert = '~\\cite{' + draggedKey + '}';
     ta.value = ta.value.slice(0, pos) + insert + ta.value.slice(pos);
     const newPos = pos + insert.length;
     ta.focus();

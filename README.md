@@ -133,9 +133,9 @@ Opens a browser at `http://localhost:{port}` — this is the **edit mode**. The 
 
 **Screenshots panel** — drag the thin divider on its left edge to resize it (remembered per-browser).
 
-**Master Notes** — a scratchpad that isn't a paper. Click "📝 Master Notes" above the search box (or press Esc from any paper). Write freely, and drag a paper from the sidebar into the Edit box to drop in a citation like `[van2021human]` at your cursor; the Notes tab renders that as a clickable pill that jumps straight to the paper — handy for drafting something like a related-work section while browsing. Stored in `master_notes.md`; included read-only in the deployed static site too.
+**Master Notes** — a scratchpad that isn't a paper. Click "📝 Master Notes" above the search box (or press Esc from any paper). Write freely, and drag a paper from the sidebar into the Edit box to drop in a LaTeX citation like `~\cite{van2021human}` at your cursor (so the text pastes straight into a `.tex` file; `\cite{a, b}` and the older `[van2021human]` form work too); the Notes tab renders those as clickable pills that jump straight to the paper. Blank lines are kept as-is in the Notes tab — one blank line starts a new paragraph, extra blank lines add extra space — handy for drafting something like a related-work section while browsing. Stored in `master_notes.md`; included read-only in the deployed static site too.
 
-**Bib validation** — if `template.bib` has a mistake that would otherwise make a paper silently vanish or render with missing data (a typo dropping the comma after a key, an entry missing title/author/year, unbalanced braces in a field), a dismissible warning banner appears at the top of the page naming exactly which entry and what's wrong.
+**Bib validation** — if `template.bib` has a mistake that would otherwise make a paper silently vanish or render with missing data (a typo dropping the comma after a key, an entry missing title/author/year, unbalanced braces in a field, two entries with the same DOI or the same title, an entry with no `doi`), a dismissible warning banner appears at the top of the page naming exactly which entry and what's wrong.
 
 - Images served from `{key}/` at `/file/{key}/{filename}`
 
