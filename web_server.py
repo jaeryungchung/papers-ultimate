@@ -9,12 +9,42 @@ BASE_DIR = Path(__file__).parent
 LAYOUT_FILE  = BASE_DIR / "layout.json"
 RATINGS_FILE = BASE_DIR / "ratings.json"
 MASTER_FILE  = BASE_DIR / "master_notes.md"
+DEFAULT_BIB  = "template.bib"
+
+
+def available_bib_files():
+    return sorted(p.name for p in BASE_DIR.glob("*.bib") if p.is_file())
+
+
+def default_bib_name():
+    return DEFAULT_BIB if (BASE_DIR / DEFAULT_BIB).exists() else (available_bib_files()[0] if available_bib_files() else DEFAULT_BIB)
+
+
+def master_notes_path(bib_name=None):
+    bib_name = bib_name or get_active_bib_name()
+    if bib_name == DEFAULT_BIB:
+        return MASTER_FILE
+    return BASE_DIR / f"master_notes_{Path(bib_name).stem}.md"
+
+
+def normalize_layout(data):
+    data = dict(data or {})
+    active = data.get("active_bib") or default_bib_name()
+    if active not in available_bib_files():
+        active = default_bib_name()
+    if not isinstance(data.get("orders"), dict):
+        legacy_order = data.get("order") or []
+        data["orders"] = {active: legacy_order}
+    data["active_bib"] = active
+    data.setdefault("view", "list")
+    return data
 
 # ─── bib parser ───────────────────────────────────────────────────────────────
-# NOTE: template.bib is the source of truth and must stay read-only from this
-# codebase — only ever .read_text() it here, never .write_text().
-def parse_bib():
-    text = (BASE_DIR / "template.bib").read_text(encoding='utf-8')
+# NOTE: the selected .bib file is the source of truth and must stay read-only
+# from this codebase — only ever .read_text() it here, never .write_text().
+def parse_bib(bib_path=None):
+    bib_path = Path(bib_path) if bib_path else BASE_DIR / get_active_bib_name()
+    text = bib_path.read_text(encoding='utf-8')
     entries = {}
     for m in re.finditer(r'@(\w+)\{(\w+),(.*?)(?=\n@|\Z)', text, re.DOTALL):
         etype, key, body = m.group(1), m.group(2), m.group(3)
@@ -24,23 +54,26 @@ def parse_bib():
         entries[key] = fields
     return entries
 
-def bib_order():
-    text = (BASE_DIR / "template.bib").read_text(encoding='utf-8')
+def bib_order(bib_path=None):
+    bib_path = Path(bib_path) if bib_path else BASE_DIR / get_active_bib_name()
+    text = bib_path.read_text(encoding='utf-8')
     return re.findall(r'@\w+\{(\w+),', text)
 
-def bib_warnings():
-    """Sanity-check template.bib for mistakes that make an entry silently
+def bib_warnings(bib_path=None):
+    """Sanity-check the selected bib for mistakes that make an entry silently
     vanish or render with missing data (a malformed entry just fails the
     parse_bib() regex with no error otherwise)."""
-    text = (BASE_DIR / "template.bib").read_text(encoding='utf-8')
+    bib_path = Path(bib_path) if bib_path else BASE_DIR / get_active_bib_name()
+    text = bib_path.read_text(encoding='utf-8')
+    label = bib_path.name
     warnings = []
 
     starts = re.findall(r'@\w+\s*\{\s*([^,\s}]*)', text)
-    parsed = parse_bib()
+    parsed = parse_bib(bib_path)
     missing = [k for k in starts if k and k not in parsed]
     if missing:
         warnings.append(
-            "template.bib: " + ", ".join(sorted(set(missing))) +
+            f"{label}: " + ", ".join(sorted(set(missing))) +
             " didn't parse — check for a missing comma right after the key, or a brace mismatch."
         )
 
@@ -251,7 +284,7 @@ def get_paper(key):
     }
 
 def all_papers():
-    # template.bib can hold candidate entries you haven't onboarded yet — a
+    # The selected bib can hold candidate entries you haven't onboarded yet — a
     # paper only appears in the library (and the deployed site) once it has a
     # folder (created by `sync`/`new`). Deleting the folder un-publishes it
     # without touching the read-only bib.
@@ -259,20 +292,34 @@ def all_papers():
 
 def get_layout():
     if LAYOUT_FILE.exists():
-        return json.loads(LAYOUT_FILE.read_text())
-    return {"order": [], "view": "list"}
+        return normalize_layout(json.loads(LAYOUT_FILE.read_text()))
+    return normalize_layout({})
 
 def save_layout(data):
-    LAYOUT_FILE.write_text(json.dumps(data, indent=2))
+    LAYOUT_FILE.write_text(json.dumps(normalize_layout(data), indent=2), encoding='utf-8')
+
+
+def get_active_bib_name():
+    return get_layout().get("active_bib") or default_bib_name()
+
+
+def set_active_bib_name(name):
+    data = get_layout()
+    data["active_bib"] = name if name in available_bib_files() else default_bib_name()
+    save_layout(data)
 
 def get_master_notes():
-    return MASTER_FILE.read_text(encoding='utf-8') if MASTER_FILE.exists() else ''
+    path = master_notes_path()
+    return path.read_text(encoding='utf-8') if path.exists() else ''
 
 def save_master_notes(content):
-    MASTER_FILE.write_text(content, encoding='utf-8')
+    path = master_notes_path()
+    path.write_text(content, encoding='utf-8')
 
 def manual_order_map():
-    order = get_layout().get("order") or []
+    layout = get_layout()
+    orders = layout.get("orders") or {}
+    order = orders.get(layout.get("active_bib"), []) or []
     return {k: i for i, k in enumerate(order)}
 
 
@@ -307,6 +354,12 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;background:
 .sb-title{font-family:'Spectral',serif;font-size:16px;font-weight:600;color:#e8eaf6;margin-bottom:10px;}
 #search{width:100%;background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:12px;padding:6px 10px;outline:none;}
 #search::placeholder{color:var(--s-ink2);}
+
+.bib-switcher{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--s-ink2);}
+.bib-switcher label{flex-shrink:0;text-transform:uppercase;letter-spacing:.08em;font-weight:600;}
+.bib-select{flex:1;min-width:0;background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:11px;padding:5px 8px;outline:none;}
+.bib-select:focus,.bib-browse:hover{border-color:var(--accent);}
+.bib-browse{background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:11px;padding:5px 8px;cursor:pointer;white-space:nowrap;}
 
 .master-btn{width:100%;text-align:left;background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:12px;font-weight:500;padding:8px 10px;margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:6px;}
 .master-btn:hover{border-color:var(--accent);}
@@ -455,6 +508,12 @@ NEW_HTML_BODY = """
       <div class="sb-title">Paper Collection</div>
       <input id="search" type="search" placeholder="Search titles, authors, keywords..."
              oninput="Q.query=this.value; renderList()" autocomplete="off">
+      <div class="bib-switcher">
+        <label for="bib-select">Bib</label>
+        <select id="bib-select" class="bib-select" onchange="switchBib(this.value)"></select>
+        <button type="button" class="bib-browse" onclick="document.getElementById('bib-file').click()">Browse</button>
+        <input id="bib-file" type="file" accept=".bib" hidden onchange="chooseBibFile(this.files && this.files[0])">
+      </div>
       <button id="master-notes-btn" class="master-btn" onclick="openMaster()">&#x1f4dd; Master Notes</button>
     </div>
     <button class="filter-toggle-btn" id="filter-toggle" onclick="toggleFilters()">
@@ -509,9 +568,48 @@ let lastPaperKey = null;
 let PAPERS = [];
 let customOrder = [];
 let EDIT_MODE = false;
+let BIBS = [];
+let ACTIVE_BIB = '';
 
 function initCustomOrder() {
   customOrder = [...PAPERS].sort((a, b) => (a.manual_order || 0) - (b.manual_order || 0)).map(p => p.key);
+}
+
+function populateBibSwitcher(bibs, activeBib) {
+  BIBS = bibs || [];
+  ACTIVE_BIB = activeBib || ACTIVE_BIB || '';
+  const select = document.getElementById('bib-select');
+  if (!select) return;
+  select.innerHTML = BIBS.map(b => '<option value="' + escHtml(b) + '">' + escHtml(b) + '</option>').join('');
+  if (ACTIVE_BIB && BIBS.includes(ACTIVE_BIB)) select.value = ACTIVE_BIB;
+}
+
+async function loadBibSwitcher() {
+  const resp = await fetch('/api/bibs').catch(() => null);
+  if (!resp) return;
+  const data = await resp.json();
+  populateBibSwitcher(data.bibs || [], data.active_bib || '');
+}
+
+async function switchBib(name) {
+  if (!name || name === ACTIVE_BIB) return;
+  const resp = await fetch('/api/layout', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active_bib: name })
+  }).catch(() => null);
+  if (!resp) return;
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || data.ok === false) return;
+  ACTIVE_BIB = name;
+  await loadPapers();
+  await openMaster();
+}
+
+function chooseBibFile(file) {
+  if (!file || !file.name) return;
+  switchBib(file.name);
+  const picker = document.getElementById('bib-file');
+  if (picker) picker.value = '';
 }
 
 function reorderCustom(draggedKey, targetKey) {
@@ -912,6 +1010,7 @@ NEW_JS_SERVER = NEW_JS_COMMON + r"""
 EDIT_MODE = true;
 
 async function loadPapers() {
+  await loadBibSwitcher();
   const resp = await fetch('/api/papers').catch(() => null);
   if (!resp) return;
   PAPERS = await resp.json();
@@ -1096,6 +1195,8 @@ async function openMaster() {
   renderList();
   const mb = document.getElementById('master-notes-btn');
   if (mb) mb.classList.add('active');
+  const select = document.getElementById('bib-select');
+  if (select && ACTIVE_BIB && select.value !== ACTIVE_BIB) select.value = ACTIVE_BIB;
   document.getElementById('welcome').hidden = true;
   const view = document.getElementById('paper-view');
   view.hidden = false;
@@ -1106,7 +1207,7 @@ async function openMaster() {
   const content = data.content || '';
 
   view.innerHTML =
-    '<div class="pv-eyebrow">Master Notes</div>'+
+    '<div class="pv-eyebrow">Master Notes <span style="opacity:.6">· ' + escHtml(ACTIVE_BIB || '') + '</span></div>'+ 
     '<hr class="divider">'+
     '<div class="tabs">'+
       '<button class="tab on" data-tab="notes" onclick="switchTab(this,\'notes\')">Notes</button>'+
@@ -1173,6 +1274,8 @@ let MASTER_CONTENT = '';
     buildFilterChips();
     renderList();
     initShotsResizer();
+    const switcher = document.querySelector('.bib-switcher');
+    if (switcher) switcher.remove();
   }
   fetch('papers.json')
     .then(function(r){ return r.json(); })
@@ -1365,9 +1468,18 @@ class Handler(BaseHTTPRequestHandler):
             key = unquote(path.split('/api/paper/')[1])
             self.send_json(get_paper(key))
         elif path == '/api/layout':
-            self.send_json(get_layout())
+          layout = get_layout()
+          self.send_json({
+            "active_bib": layout.get("active_bib"),
+            "view": layout.get("view", "list"),
+            "order": (layout.get("orders") or {}).get(layout.get("active_bib"), []),
+            "bibs": available_bib_files(),
+          })
+        elif path == '/api/bibs':
+          layout = get_layout()
+          self.send_json({"active_bib": layout.get("active_bib"), "bibs": available_bib_files()})
         elif path == '/api/master':
-            self.send_json({"content": get_master_notes()})
+          self.send_json({"content": get_master_notes(), "bib": get_active_bib_name()})
         elif path == '/api/warnings':
             self.send_json({"warnings": bib_warnings()})
         elif path.startswith('/file/'):
@@ -1390,7 +1502,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if 'template.bib' in path:
+        if path.endswith('.bib'):
             self.send_response(404); self.end_headers(); return
         length = int(self.headers.get('Content-Length', 0))
         body = json_mod.loads(self.rfile.read(length)) if length else {}
@@ -1421,8 +1533,15 @@ class Handler(BaseHTTPRequestHandler):
             set_rating(key, body.get('rating', 0))
             self.send_json({"ok": True})
         elif path == '/api/layout':
-            save_layout(body)
-            self.send_json({"ok": True})
+          layout = get_layout()
+          if 'active_bib' in body and body['active_bib'] in available_bib_files():
+            layout['active_bib'] = body['active_bib']
+          if 'order' in body:
+            layout.setdefault('orders', {})[layout.get('active_bib', default_bib_name())] = body.get('order') or []
+          if 'view' in body:
+            layout['view'] = body['view']
+          save_layout(layout)
+          self.send_json({"ok": True, "active_bib": get_active_bib_name(), "order": (get_layout().get('orders') or {}).get(get_active_bib_name(), [])})
         elif path == '/api/master':
             save_master_notes(body.get('content', ''))
             self.send_json({"ok": True})

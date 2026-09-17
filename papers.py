@@ -24,10 +24,10 @@ from pathlib import Path
 from datetime import datetime
 
 BASE_DIR  = Path(__file__).parent
-BIB_FILE  = BASE_DIR / "template.bib"
 LAYOUT    = BASE_DIR / "layout.json"
 STATUS_MD = BASE_DIR / "status.md"
 PDF_DIR   = BASE_DIR / "000_new_pdfs"  # drop new PDFs here for `sync` to pick up
+DEFAULT_BIB = "template.bib"
 
 # ─── .env loader ─────────────────────────────────────────────────────────────
 def load_env():
@@ -41,10 +41,35 @@ def load_env():
 
 load_env()
 
+
+def available_bib_files():
+    return sorted(p.name for p in BASE_DIR.glob("*.bib") if p.is_file())
+
+
+def default_bib_name():
+    return DEFAULT_BIB if (BASE_DIR / DEFAULT_BIB).exists() else (available_bib_files()[0] if available_bib_files() else DEFAULT_BIB)
+
+
+def get_active_bib_name():
+    if LAYOUT.exists():
+        try:
+            data = json.loads(LAYOUT.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+        active = data.get("active_bib")
+        if active in available_bib_files():
+            return active
+    return default_bib_name()
+
+
+def get_active_bib_path():
+    return BASE_DIR / get_active_bib_name()
+
 # ─── bib parser ──────────────────────────────────────────────────────────────
-# NOTE: template.bib is the source of truth and must stay read-only from this
-# codebase — only ever .read_text() it here, never .write_text().
-def parse_bib(bib_path=BIB_FILE):
+# NOTE: the selected .bib file is the source of truth and must stay read-only
+# from this codebase — only ever .read_text() it here, never .write_text().
+def parse_bib(bib_path=None):
+    bib_path = Path(bib_path) if bib_path else get_active_bib_path()
     text = bib_path.read_text(encoding="utf-8")
     entries = {}
     for m in re.finditer(r'@(\w+)\{(\w+),(.*?)(?=\n@|\Z)', text, re.DOTALL):
@@ -55,11 +80,13 @@ def parse_bib(bib_path=BIB_FILE):
         entries[key] = f
     return entries
 
-def bib_warnings(bib_path=BIB_FILE):
-    """Sanity-check template.bib for mistakes that make an entry silently
+def bib_warnings(bib_path=None):
+    """Sanity-check the selected bib for mistakes that make an entry silently
     vanish or render with missing data (a malformed entry just fails the
     parse_bib() regex with no error otherwise)."""
+    bib_path = Path(bib_path) if bib_path else get_active_bib_path()
     text = bib_path.read_text(encoding="utf-8")
+    label = bib_path.name
     warnings = []
 
     starts = re.findall(r'@\w+\s*\{\s*([^,\s}]*)', text)
@@ -67,7 +94,7 @@ def bib_warnings(bib_path=BIB_FILE):
     missing = [k for k in starts if k and k not in parsed]
     if missing:
         warnings.append(
-            "template.bib: " + ", ".join(sorted(set(missing))) +
+            f"{label}: " + ", ".join(sorted(set(missing))) +
             " didn't parse — check for a missing comma right after the key, or a brace mismatch."
         )
 
@@ -277,7 +304,7 @@ def init_paper_folder(key, entries, pdf_src=None):
     md = folder / f"{key}.md"
     if not md.exists():
         # No title/author/venue header here — that's already on the slide
-        # from template.bib. The Edit-tab Save in web_server.py rewrites this
+        # from the selected bib. The Edit-tab Save in web_server.py rewrites this
         # file as just these four sections, so keep the on-disk template in
         # sync with that shape.
         md.write_text(
@@ -504,10 +531,10 @@ def write_status_md(entries, loose_orphans=None):
     ]
 
     # warnings
-    warnings = [f"⚠️  **template.bib**: {w}" for w in bib_warnings()]
+    warnings = [f"⚠️  **{get_active_bib_name()}**: {w}" for w in bib_warnings()]
     if loose_orphans:
         for p in loose_orphans:
-            warnings.append(f"⚠️  **Unmatched PDF** (no bib entry found): `{p.name}` — add a `@article{{...}}` entry to `template.bib`")
+            warnings.append(f"⚠️  **Unmatched PDF** (no bib entry found): `{p.name}` — add a `@article{{...}}` entry to {get_active_bib_name()}")
     for k in entries:
         if not (BASE_DIR/k/f"{k}.pdf").exists():
             warnings.append(f"⚠️  **Missing PDF** for `{k}` — save as `{k}/{k}.pdf`")
@@ -547,7 +574,7 @@ def write_status_md(entries, loose_orphans=None):
         for p in loose_orphans:
             lines += [
                 f"- `{p.name}`  ",
-                f"  Add a bib entry to `template.bib` and run `python papers.py sync`",
+                f"  Add a bib entry to {get_active_bib_name()} and run `python papers.py sync`",
             ]
         lines.append("")
 
@@ -602,7 +629,7 @@ def cmd_sync(args):
 
     bwarn = bib_warnings()
     if bwarn:
-        print("⚠️  template.bib issues:")
+        print(f"⚠️  {get_active_bib_name()} issues:")
         for w in bwarn:
             print(f"    - {w}")
         print()
@@ -660,7 +687,7 @@ def cmd_sync(args):
 
     orphans = [p for p in loose if p not in used]
     if orphans:
-        print("\n⚠️  PDFs with no matching bib entry (add to template.bib):")
+        print(f"\n⚠️  PDFs with no matching bib entry (add to {get_active_bib_name()}):")
         for p in orphans:
             hint = pdf_display_title(p)
             print(f"    - {p.name}" + (f"  —  {hint[:70]}" if hint else ""))
@@ -722,7 +749,7 @@ def cmd_imgs(args):
 def cmd_new(args):
     entries = parse_bib()
     if args.key not in entries:
-        print(f"Warning: '{args.key}' not in template.bib (continuing anyway)")
+        print(f"Warning: '{args.key}' not in {get_active_bib_name()} (continuing anyway)")
     init_paper_folder(args.key, entries)
 
 def cmd_serve(args):

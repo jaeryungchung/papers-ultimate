@@ -115,11 +115,12 @@ Opens a browser at `http://localhost:{port}` — this is the **edit mode**. The 
 - Click a paper, or use **↑ / ↓** (Figma/Keynote-style) to page through the sidebar list — whichever tab you're on carries over to the next paper
 - **← / →** switches between the Notes / Abstract / AI Analysis / Edit tabs
 - **Esc** toggles between the paper you're viewing and **Master Notes** (see below), and back again
+- A small **Bib** picker sits above Master Notes in the sidebar so you can switch between `template.bib`, `architect.bib`, and any other `.bib` file in the folder
 - Search box matches title, authors, venue, affiliations, and **keywords** — a bib keyword doesn't need to appear in the title to be found (e.g. searching "llm" finds a paper whose bib `keywords` field includes LLM even if the title doesn't)
 - Sort: Added / Year ↑↓ / A–Z / ★ Stars / Custom. Filter by Venue or your own Tags in the sidebar panel
 
 **Each paper is a slide**
-- Title, authors, venue, year, keywords — pulled straight from `template.bib`
+- Title, authors, venue, year, keywords — pulled straight from the currently selected bib
 - **Notes tab**: **Quotes**, **My Thoughts**, **Sense** (how you'd use this paper), and your own **Tags** as chips (e.g. `#CST`, for sorting into related-work sections later). A section only renders if it has content — nothing shows for an untouched paper
 - **Abstract tab**: shows the bib abstract; the pencil icon lets you edit and highlight it too (see below) — your edited copy is saved separately from the read-only bib and takes over as the display
 - **AI Analysis tab**: empty until you run `analyze`. `{key}_ai.md` is a master file — the pencil icon lets you hand-edit it afterwards too (e.g. fixing a wrong/missing Affiliations tag); re-running `analyze` won't clobber a manual fix
@@ -133,9 +134,9 @@ Opens a browser at `http://localhost:{port}` — this is the **edit mode**. The 
 
 **Screenshots panel** — drag the thin divider on its left edge to resize it (remembered per-browser).
 
-**Master Notes** — a scratchpad that isn't a paper. Click "📝 Master Notes" above the search box (or press Esc from any paper). Write freely, and drag a paper from the sidebar into the Edit box to drop in a LaTeX citation like `~\cite{van2021human}` at your cursor (so the text pastes straight into a `.tex` file; `\cite{a, b}` and the older `[van2021human]` form work too); the Notes tab renders those as clickable pills that jump straight to the paper. Blank lines are kept as-is in the Notes tab — one blank line starts a new paragraph, extra blank lines add extra space — handy for drafting something like a related-work section while browsing. Stored in `master_notes.md`; included read-only in the deployed static site too.
+**Master Notes** — a scratchpad that isn't a paper. Click "📝 Master Notes" above the search box (or press Esc from any paper). Write freely, and drag a paper from the sidebar into the Edit box to drop in a LaTeX citation like `~\cite{van2021human}` at your cursor (so the text pastes straight into a `.tex` file; `\cite{a, b}` and the older `[van2021human]` form work too); the Notes tab renders those as clickable pills that jump straight to the paper. Blank lines are kept as-is in the Notes tab — one blank line starts a new paragraph, extra blank lines add extra space — handy for drafting something like a related-work section while browsing. Stored per bib as `master_notes.md` for the default bib, or `master_notes_<bibname>.md` for the selected bib; included read-only in the deployed static site too.
 
-**Bib validation** — if `template.bib` has a mistake that would otherwise make a paper silently vanish or render with missing data (a typo dropping the comma after a key, an entry missing title/author/year, unbalanced braces in a field, two entries with the same DOI or the same title, an entry with no `doi`), a dismissible warning banner appears at the top of the page naming exactly which entry and what's wrong.
+**Bib validation** — if the currently selected bib has a mistake that would otherwise make a paper silently vanish or render with missing data (a typo dropping the comma after a key, an entry missing title/author/year, unbalanced braces in a field, two entries with the same DOI or the same title, an entry with no `doi`), a dismissible warning banner appears at the top of the page naming exactly which entry and what's wrong.
 
 - Images served from `{key}/` at `/file/{key}/{filename}`
 
@@ -160,7 +161,8 @@ papers-ultimate/
 ├── .env                      ← ANTHROPIC_API_KEY=... (never commit!)
 ├── layout.json               ← custom sidebar order (commit this — see GitHub Pages deployment)
 ├── ratings.json              ← star ratings (commit this too)
-├── master_notes.md           ← Master Notes scratchpad (commit this too)
+├── master_notes.md           ← Master Notes scratchpad for the default bib
+├── master_notes_<bib>.md     ← Additional Master Notes files for other bibs
 ├── 000_new_pdfs/             ← drop new PDFs here; `sync` matches (title or DOI) + moves them into {key}/
 ├── papers.py                 ← CLI
 ├── web_server.py             ← local server
