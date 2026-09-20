@@ -95,6 +95,35 @@ def bib_warnings(bib_path=None):
     warnings += bib_content_warnings(parsed)
     return warnings
 
+def cross_bib_warnings():
+    """Checks that need every .bib file at once, so they surface regardless
+    of which one is currently active: the same key defined in two files (a
+    citation moved without deleting the old copy), and a paper folder whose
+    key isn't in any .bib file (the citation was deleted/renamed and the
+    folder was left behind)."""
+    warnings = []
+    origin = {}
+    for bib_name in available_bib_files():
+        try:
+            entries = parse_bib(BASE_DIR / bib_name)
+        except Exception:
+            continue
+        for key in entries:
+            if key in origin:
+                warnings.append(f"'{key}' is defined in both {origin[key]} and {bib_name} — remove it from one.")
+                continue
+            origin[key] = bib_name
+
+    for folder in sorted(BASE_DIR.iterdir()):
+        name = folder.name
+        if not folder.is_dir() or name.startswith('.') or name.startswith('_') or name == 'site':
+            continue
+        if not (folder / f"{name}.md").exists() and not (folder / f"{name}_ai.md").exists():
+            continue
+        if name not in origin:
+            warnings.append(f"'{name}/' has no matching entry in any .bib file — delete the folder, or re-add its citation.")
+    return warnings
+
 def bib_content_warnings(parsed):
     """Duplicate entries (same DOI or same title under different keys) and
     entries with no DOI. Shared by papers.py and web_server.py."""
@@ -186,14 +215,17 @@ def parse_note_sections(raw_md):
     def extract(header):
         m = _note_section_pattern(header).search(raw_md)
         return m.group(1).strip() if m else ''
-    tags_raw = extract('Tags')
-    tags = [t.strip() for t in re.split(r'[,\n]', tags_raw) if t.strip()]
+    def extract_list(header):
+        raw = extract(header)
+        return [t.strip() for t in re.split(r'[,\n]', raw) if t.strip()]
     return {
         'quotes':   extract('Quotes'),
         'thoughts': extract('My Thoughts'),
         'apply':    extract('Sense'),
-        'tags':     tags,
+        'tags':     extract_list('Tags'),
         'abstract': extract('Abstract'),
+        'venue':    extract('Venue'),
+        'keywords': extract_list('Keywords'),
     }
 
 def save_note_sections(key, updates):
@@ -236,10 +268,9 @@ def get_paper(key):
 
     venue_full  = fields.get('booktitle') or fields.get('journal', '')
     year        = fields.get('year', '')
-    venue_short = make_venue_short(venue_full, year)
 
-    raw_kw   = fields.get('keywords', '')
-    keywords = [k.strip() for k in re.split(r'[,;]', raw_kw) if k.strip()] if raw_kw else []
+    raw_kw       = fields.get('keywords', '')
+    bib_keywords = [k.strip() for k in re.split(r'[,;]', raw_kw) if k.strip()] if raw_kw else []
 
     named = re.compile(rf'^{re.escape(key)}_\d+\.(png|jpg|jpeg)$', re.I)
     screenshots = sorted(
@@ -248,6 +279,10 @@ def get_paper(key):
 
     notes_raw = (folder / f"{key}.md").read_text('utf-8') if (folder / f"{key}.md").exists() else ''
     sections  = parse_note_sections(notes_raw)
+
+    venue_short_auto = make_venue_short(venue_full, year)
+    venue_short = sections['venue'] or venue_short_auto
+    keywords    = sections['keywords'] if sections['keywords'] else bib_keywords
 
     ai_raw = (folder / f"{key}_ai.md").read_text('utf-8') if (folder / f"{key}_ai.md").exists() else ''
 
@@ -264,12 +299,14 @@ def get_paper(key):
         "title":        fields.get('title', key),
         "authors":      authors,
         "year":         int(year) if str(year).isdigit() else year,
-        "venue_short":  venue_short,
+        "venue_short":      venue_short,
+        "venue_short_auto": venue_short_auto,
         "venue_full":   venue_full,
         "doi":          fields.get('doi', ''),
         "abstract":     fields.get('abstract', ''),
         "abstract_hl":  sections['abstract'] or fields.get('abstract', ''),
-        "keywords":     keywords,
+        "keywords":       keywords,
+        "keywords_bib":   bib_keywords,
         "affiliations": parse_affiliations(key),
         "quotes":       sections['quotes'],
         "thoughts":     sections['thoughts'],
@@ -1113,6 +1150,10 @@ async function openPaper(key) {
         '<textarea id="apply-editor" class="editor-ta">'+escHtml(p.apply||'')+'</textarea></div>'+
       '<div class="edit-field"><label>Tags <span class="hl-hint">(comma-separated — for grouping into related-work sections later)</span></label>'+
         '<input id="tags-editor" class="editor-ta" style="height:auto;padding:8px 10px" value="'+escHtml((p.tags||[]).join(', '))+'"></div>'+
+      '<div class="edit-field"><label>Venue (short) <span class="hl-hint">(overrides the auto-abbreviated "'+escHtml(p.venue_short_auto||'')+'" shown on the slide/sidebar)</span></label>'+
+        '<input id="venue-editor" class="editor-ta" style="height:auto;padding:8px 10px" placeholder="'+escHtml(p.venue_short_auto||'')+'" value="'+escHtml(p.venue_short && p.venue_short !== p.venue_short_auto ? p.venue_short : '')+'"></div>'+
+      '<div class="edit-field"><label>Keywords <span class="hl-hint">(comma-separated — overrides the bib keywords field; also searchable)</span></label>'+
+        '<input id="keywords-editor" class="editor-ta" style="height:auto;padding:8px 10px" placeholder="'+escHtml((p.keywords_bib||[]).join(', '))+'" value="'+escHtml((p.keywords||[]).join(', ') !== (p.keywords_bib||[]).join(', ') ? (p.keywords||[]).join(', ') : '')+'"></div>'+
       '<div style="display:flex;gap:8px">'+
         '<button onclick="saveNotes(\''+key+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:13px">Save</button>'+
         '<span id="save-status" style="font-size:12px;color:var(--ink2);align-self:center"></span>'+
@@ -1128,9 +1169,11 @@ async function saveNotes(key) {
   const thoughts = document.getElementById('thoughts-editor').value;
   const apply    = document.getElementById('apply-editor').value;
   const tags     = document.getElementById('tags-editor').value;
+  const venue    = document.getElementById('venue-editor').value;
+  const keywords = document.getElementById('keywords-editor').value;
   const resp = await fetch('/api/paper/'+key+'/notes', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({quotes, thoughts, apply, tags})
+    body: JSON.stringify({quotes, thoughts, apply, tags, venue, keywords})
   });
   const r = await resp.json();
   if (r.ok) {
@@ -1406,7 +1449,7 @@ def generate_static():
     master_json = json.dumps({"content": get_master_notes()}, ensure_ascii=False, indent=2)
     (site_dir / "master.json").write_text(master_json, encoding='utf-8')
 
-    warnings_json = json.dumps({"warnings": bib_warnings()}, ensure_ascii=False, indent=2)
+    warnings_json = json.dumps({"warnings": bib_warnings() + cross_bib_warnings()}, ensure_ascii=False, indent=2)
     (site_dir / "warnings.json").write_text(warnings_json, encoding='utf-8')
 
     js = NEW_JS_STATIC_TPL.replace('/*PAPERS_JSON*/', papers_json)
@@ -1481,7 +1524,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/master':
           self.send_json({"content": get_master_notes(), "bib": get_active_bib_name()})
         elif path == '/api/warnings':
-            self.send_json({"warnings": bib_warnings()})
+            self.send_json({"warnings": bib_warnings() + cross_bib_warnings()})
         elif path.startswith('/file/'):
             parts = path[6:].split('/', 1)
             if len(parts) == 2:
@@ -1514,6 +1557,8 @@ class Handler(BaseHTTPRequestHandler):
                 'My Thoughts': body.get('thoughts', ''),
                 'Sense':       body.get('apply', ''),
                 'Tags':        body.get('tags', ''),
+                'Venue':       body.get('venue', ''),
+                'Keywords':    body.get('keywords', ''),
             })
             self.send_json({"ok": True})
         elif path.startswith('/api/paper/') and path.endswith('/abstract'):

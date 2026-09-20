@@ -116,6 +116,34 @@ def bib_warnings(bib_path=None):
     warnings += bib_content_warnings(parsed)
     return warnings
 
+def cross_bib_state():
+    """Merge entries from every .bib file, catching a key accidentally left
+    defined in two files at once. Returns (merged_entries, {key: bib_name})."""
+    merged, origin, warnings = {}, {}, []
+    for bib_name in available_bib_files():
+        entries = parse_bib(BASE_DIR / bib_name)
+        for key, f in entries.items():
+            if key in origin:
+                warnings.append(f"'{key}' is defined in both {origin[key]} and {bib_name} — remove it from one.")
+                continue
+            merged[key] = f
+            origin[key] = bib_name
+    return merged, origin, warnings
+
+def orphan_folder_warnings(known_keys):
+    """A paper folder whose key isn't in any .bib file — usually means the
+    citation was deleted or renamed and the folder was left behind."""
+    warnings = []
+    for folder in sorted(BASE_DIR.iterdir()):
+        name = folder.name
+        if not folder.is_dir() or name.startswith('.') or name.startswith('_') or name == 'site':
+            continue
+        if not (folder / f"{name}.md").exists() and not (folder / f"{name}_ai.md").exists():
+            continue
+        if name not in known_keys:
+            warnings.append(f"'{name}/' has no matching entry in any .bib file — delete the folder, or re-add its citation.")
+    return warnings
+
 def bib_content_warnings(parsed):
     """Duplicate entries (same DOI or same title under different keys) and
     entries with no DOI. Shared by papers.py and web_server.py."""
@@ -380,9 +408,10 @@ def parse_affiliations(key):
     return [t.strip() for t in tags if t.strip().lower() not in ('unknown','br','p','em','strong','a')]
 
 # ─── AI analysis ─────────────────────────────────────────────────────────────
-ANALYSIS_PROMPT = """You are analyzing an academic paper. The user has provided their own reading notes below —
+ANALYSIS_PROMPT = """You are analyzing an academic HCI paper. The user has provided their own reading notes below —
 use them to inform your analysis (e.g. what to emphasize in Summary/Core Contributions), but don't write a
-separate section calling out the connection; just fold that understanding into the sections below.
+separate section calling out the connection; just fold that understanding into the sections below. Be concise and simple with the analysis. 
+The domain is context aware interactive toy for children in play. The current goal is to build concrete study design. 
 
 ## User Notes
 {notes}
@@ -391,15 +420,15 @@ separate section calling out the connection; just fold that understanding into t
 
 Please write a structured Markdown analysis with these exact sections:
 
-## Summary
-2–3 sentences covering the core idea and contribution.
+## Research Gap
+What the author describe as needs or underexplored areas in the field, and how this paper addresses them.
 
-## Affiliations
-List the authors and their institutions exactly as they appear in the paper.
-Format each institution as a tag on its own line: <InstitutionName> (e.g. <MIT> <KAIST> <Aalborg University>)
+## Research Question
+Explicit questions copy. or, 2–3 sentences covering the core idea and contribution.
 
 ## Core Contributions
 Bullet points of the main technical/scientific contributions.
+(if system paper, empirical study, or design research etc)
 
 ## Methodology
 How the study was conducted (system built, study design, participants, metrics).
@@ -409,9 +438,12 @@ Main results and takeaways.
 
 ## Limitations & Future Work
 What the authors acknowledge as limitations, and directions they suggest.
+Future work related to my work of interactive toy design and study design.
 
-## Related Work Cited
-3–5 key cited works most relevant to the paper's contribution (title + authors, no need for full ref).
+## Affiliations
+List the authors and their institutions exactly as they appear in the paper.
+Format each institution as a tag on its own line: <InstitutionName> (e.g. <MIT> <KAIST> <Aalborg University>)
+
 
 Keep each section concise and researcher-useful. Format clean Markdown."""
 
@@ -489,21 +521,21 @@ def analyze_paper(key, show_prompt=False):
     img_md = '\n\n'.join(f'![{s}]({s})' for s in imgs) or '_No screenshots yet._'
 
     ai_file.write_text(
-        f"<!-- AI Analysis: {key} – {datetime.now():%Y-%m-%d %H:%M} -->\n"
-        f"<!-- See also: [{key}.md]({key}.md) -->\n\n"
-        f"# AI Analysis: {title}\n\n"
-        f"[Full PDF]({key}.pdf)\n\n"
-        f"---\n\n"
+        # f"<!-- AI Analysis: {key} – {datetime.now():%Y-%m-%d %H:%M} -->\n"
+        # f"<!-- See also: [{key}.md]({key}.md) -->\n\n"
+        # f"# AI Analysis: {title}\n\n"
+        # f"[Full PDF]({key}.pdf)\n\n"
+        # f"---\n\n"
         f"{analysis}\n\n"
         f"---\n\n"
-        f"## Screenshots\n\n{img_md}\n\n"
+        # f"## Screenshots\n\n{img_md}\n\n"
         f"---\n_Generated {datetime.now():%Y-%m-%d} by Claude (model: claude-opus-4-5)_\n",
         encoding="utf-8"
     )
     print(f"  ✅  {key}/{key}_ai.md written")
 
 # ─── status.md writer ────────────────────────────────────────────────────────
-def write_status_md(entries, loose_orphans=None):
+def write_status_md(entries, loose_orphans=None, extra_warnings=None):
     """Write status.md with current library state."""
     lines = [
         "# Paper Library — Status",
@@ -531,10 +563,13 @@ def write_status_md(entries, loose_orphans=None):
     ]
 
     # warnings
-    warnings = [f"⚠️  **{get_active_bib_name()}**: {w}" for w in bib_warnings()]
+    if extra_warnings is not None:
+        warnings = [f"⚠️  {w}" for w in extra_warnings]
+    else:
+        warnings = [f"⚠️  **{get_active_bib_name()}**: {w}" for w in bib_warnings()]
     if loose_orphans:
         for p in loose_orphans:
-            warnings.append(f"⚠️  **Unmatched PDF** (no bib entry found): `{p.name}` — add a `@article{{...}}` entry to {get_active_bib_name()}")
+            warnings.append(f"⚠️  **Unmatched PDF** (no bib entry found): `{p.name}` — add a `@article{{...}}` entry to any .bib file")
     for k in entries:
         if not (BASE_DIR/k/f"{k}.pdf").exists():
             warnings.append(f"⚠️  **Missing PDF** for `{k}` — save as `{k}/{k}.pdf`")
@@ -623,16 +658,31 @@ def _pick_loose_pdf(key, f, candidates):
         print("        (enter a number from the list, Enter to skip, or q)")
 
 def cmd_sync(args):
-    entries = parse_bib()
-    loose   = find_loose_pdfs()
-    print(f"Bib entries: {len(entries)}  |  Loose PDFs: {len(loose)}\n")
+    bibs = available_bib_files()
+    if not bibs:
+        print("No .bib files found in this folder."); return
+    print(f"Bib files: {', '.join(bibs)}\n")
 
-    bwarn = bib_warnings()
-    if bwarn:
-        print(f"⚠️  {get_active_bib_name()} issues:")
-        for w in bwarn:
+    # Merge every .bib file into one pool so a single sync run admits new
+    # entries no matter which file they were filed into (and which bib
+    # happens to be "active" in the web UI) — that's the whole point: a
+    # citation moved into any .bib file gets synced without switching to it.
+    entries, origin, dupe_warnings = cross_bib_state()
+
+    all_warnings = list(dupe_warnings)
+    for bib_name in bibs:
+        for w in bib_warnings(BASE_DIR / bib_name):
+            all_warnings.append(f"{bib_name}: {w}")
+    all_warnings += orphan_folder_warnings(set(origin))
+
+    if all_warnings:
+        print("⚠️  Issues found across your bib files:")
+        for w in all_warnings:
             print(f"    - {w}")
         print()
+
+    loose = find_loose_pdfs()
+    print(f"Total entries across {len(bibs)} bib file(s): {len(entries)}  |  Loose PDFs: {len(loose)}\n")
 
     # Pass 1 — confident automatic matches (DOI / arXiv id / title in PDF text).
     # Each loose PDF goes to the entry it scores highest against, so two entries
@@ -649,7 +699,7 @@ def cmd_sync(args):
     missing = []
     for key in entries:
         folder = BASE_DIR / key
-        print(f"📚  {key}")
+        print(f"📚  {key}  [{origin[key]}]")
         if (folder/f"{key}.pdf").exists():
             init_paper_folder(key, entries)
             continue
@@ -687,12 +737,12 @@ def cmd_sync(args):
 
     orphans = [p for p in loose if p not in used]
     if orphans:
-        print(f"\n⚠️  PDFs with no matching bib entry (add to {get_active_bib_name()}):")
+        print(f"\n⚠️  PDFs with no matching bib entry (add to any .bib file):")
         for p in orphans:
             hint = pdf_display_title(p)
             print(f"    - {p.name}" + (f"  —  {hint[:70]}" if hint else ""))
 
-    write_status_md(entries, loose_orphans=orphans)
+    write_status_md(entries, loose_orphans=orphans, extra_warnings=all_warnings)
 
 def cmd_status(args):
     entries = parse_bib()
