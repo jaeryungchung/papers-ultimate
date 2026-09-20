@@ -379,6 +379,7 @@ NEW_CSS = """
 html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);}
 
 #shell{display:grid;grid-template-columns:272px 1fr;grid-template-rows:100vh;height:100vh;}
+#shell{grid-template-rows:100dvh;height:100dvh;}
 #shell.has-shots{grid-template-columns:272px 1fr 6px var(--shots-w, 220px);}
 
 .shots-resizer{cursor:col-resize;position:relative;background:transparent;}
@@ -526,11 +527,24 @@ mark.hl{background:#fbc4c4;color:#5c1414;padding:0 2px;border-radius:2px;}
 .lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;}
 
 @media(max-width:700px){
-  #shell,#shell.has-shots{grid-template-columns:1fr;}
-  #sidebar{height:40vh;}
+  #shell,#shell.has-shots{grid-template-columns:1fr;grid-template-rows:38vh 1fr;grid-template-rows:38dvh 1fr;}
+  #sidebar{height:auto;}
   #shots-panel,.shots-resizer{display:none;}
   #main{padding:0;}
-  #paper-view{padding:18px 18px 40px;max-width:100%;margin:0;border-radius:0;box-shadow:none;}
+  #paper-view{padding:18px 18px 40px;max-width:100%;margin:0;border-radius:0;box-shadow:none;-webkit-overflow-scrolling:touch;}
+  #paper-list{-webkit-overflow-scrolling:touch;}
+
+  /* Bigger tap targets + 16px inputs so iOS Safari doesn't zoom in on focus */
+  #search,.editor-ta,.master-btn{font-size:16px;}
+  .master-btn{padding:12px 10px;}
+  .sort-btn{padding:7px 12px;font-size:13px;}
+  .fchip{padding:6px 12px;font-size:13px;}
+  .tab{padding:11px 14px;font-size:14px;touch-action:manipulation;}
+  .star-btn{padding:6px 4px;font-size:24px;touch-action:manipulation;}
+  .pl-item{padding:13px 16px;touch-action:manipulation;}
+  #theme-btn{width:40px;height:40px;font-size:17px;}
+  .filter-toggle-btn{padding:11px 16px;}
+  button{touch-action:manipulation;}
 }
 """
 
