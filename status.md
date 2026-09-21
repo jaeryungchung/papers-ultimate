@@ -1,5 +1,5 @@
 # Paper Library — Status
-_Last updated: 2026-09-21 02:07_
+_Last updated: 2026-09-21 09:53_
 
 ---
 
@@ -7,13 +7,15 @@ _Last updated: 2026-09-21 02:07_
 
 | Metric | Value |
 |--------|-------|
-| Total papers (bib entries) | 21 |
-| PDFs present | 14 / 21 |
-| AI analysis done | 1 / 21 |
+| Total papers (bib entries) | 22 |
+| PDFs present | 14 / 22 |
+| AI analysis done | 5 / 22 |
 | Total screenshots indexed | 5 |
 
 ## ⚠️ Warnings
 
+- ⚠️  01_template.bib: 'apsp': missing year.
+- ⚠️  01_template.bib: 'apsp': no doi field.
 - ⚠️  **Unmatched PDF** (no bib entry found): `1-s2.0-S1071581903000235-main.pdf` — add a `@article{...}` entry to any .bib file
 - ⚠️  **Unmatched PDF** (no bib entry found): `1858171.1858195.pdf` — add a `@article{...}` entry to any .bib file
 - ⚠️  **Unmatched PDF** (no bib entry found): `2206.04769v1.pdf` — add a `@article{...}` entry to any .bib file
@@ -28,6 +30,7 @@ _Last updated: 2026-09-21 02:07_
 - ⚠️  **Unmatched PDF** (no bib entry found): `cscw_range.pdf` — add a `@article{...}` entry to any .bib file
 - ⚠️  **Unmatched PDF** (no bib entry found): `hebbar26a.pdf` — add a `@article{...}` entry to any .bib file
 - ⚠️  **Unmatched PDF** (no bib entry found): `mixedinit.pdf` — add a `@article{...}` entry to any .bib file
+- ⚠️  **Missing PDF** for `apsp` — save as `apsp/apsp.pdf`
 - ⚠️  **Missing PDF** for `ivanov2022moodcubes` — save as `ivanov2022moodcubes/ivanov2022moodcubes.pdf`
 - ⚠️  **Missing PDF** for `masson2025textoshop` — save as `masson2025textoshop/masson2025textoshop.pdf`
 - ⚠️  **Missing PDF** for `j2026texterial` — save as `j2026texterial/j2026texterial.pdf`
@@ -90,9 +93,9 @@ _Chung, John Joon Young and Roemmele, Melissa and Kreminski, Max_
 |-|-|
 | PDF | ✓ |
 | Notes | ✓ |
-| AI Analysis | ✗ — run `python papers.py analyze chung2025toyteller` |
+| AI Analysis | ✓ |
 | Screenshots | 0 file(s) |
-| Affiliations | _unknown_ |
+| Affiliations | `<Midjourney>` |
 
 ### ✅ `tseng2021plushpal`
 
@@ -104,9 +107,9 @@ _Tseng, Tiffany and Murai, Yumiko and Freed, Natalie and Gelosi, Deanna and Ta, 
 |-|-|
 | PDF | ✓ |
 | Notes | ✓ |
-| AI Analysis | ✗ — run `python papers.py analyze tseng2021plushpal` |
+| AI Analysis | ✓ |
 | Screenshots | 1 file(s) |
-| Affiliations | _unknown_ |
+| Affiliations | `<University of Tokyo>` `<Simon Fraser University>` `<University of California, Berkeley>` `<University of Texas at Austin>` |
 
 ### ✅ `cassell2001making`
 
@@ -146,9 +149,9 @@ _Dangol, Aayushi and Gupta, Meghna and Yoo, Daeun and Wolfe, Robert and Yip, Jas
 |-|-|
 | PDF | ✓ |
 | Notes | ✓ |
-| AI Analysis | ✗ — run `python papers.py analyze dangol2026toys` |
+| AI Analysis | ✓ |
 | Screenshots | 1 file(s) |
-| Affiliations | _unknown_ |
+| Affiliations | `<University of Washington>` `<Rutgers University>` |
 
 ### ✅ `lochrie2026understanding`
 
@@ -160,7 +163,21 @@ _Lochrie, Mark and Thompson, Sheral and Read, Janet and Fitton, Daniel_
 |-|-|
 | PDF | ✓ |
 | Notes | ✓ |
-| AI Analysis | ✗ — run `python papers.py analyze lochrie2026understanding` |
+| AI Analysis | ✓ |
+| Screenshots | 0 file(s) |
+| Affiliations | `<University of Lancashire>` `<Lancaster University>` |
+
+### 🔴 `apsp`
+
+**Affect in Play Scale-Preschool (APS-P)**  
+_Daniela Di Riso_  
+ · 
+
+| | |
+|-|-|
+| PDF | ✗ missing — add to `apsp/apsp.pdf` |
+| Notes | ✓ |
+| AI Analysis | ✗ — run `python papers.py analyze apsp` |
 | Screenshots | 0 file(s) |
 | Affiliations | _unknown_ |
 

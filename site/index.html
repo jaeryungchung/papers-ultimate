@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Paper Library</title>
+<style>
+[hidden] { display: none !important; }
+@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --bg:#f7f5f1; --bg2:#eeece6; --sidebar:#151827; --sidebar2:#1e2238;
+  --ink:#1c1e2b; --ink2:#5a5d72; --border:#d8d5ce; --s-border:#2a2e42;
+  --s-ink:#c8cce0; --s-ink2:#6b7094; --accent:#4f63d2; --accent2:#3a4db8;
+  --tag-bg:#e8e5de; --star:#f5a623; color-scheme:light;
+}
+[data-theme="dark"] {
+  --bg:#13141a; --bg2:#1a1b24; --ink:#e0e2f0; --ink2:#8085a8;
+  --border:#2a2e42; --tag-bg:#22253a; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);}
+
+#shell{display:grid;grid-template-columns:272px 1fr;grid-template-rows:100vh;height:100vh;}
+#shell.has-shots{grid-template-columns:272px 1fr 6px var(--shots-w, 220px);}
+
+.shots-resizer{cursor:col-resize;position:relative;background:transparent;}
+.shots-resizer::after{content:'';position:absolute;top:0;bottom:0;left:2px;width:2px;background:var(--border);}
+.shots-resizer:hover::after,.shots-resizer.dragging::after{background:var(--accent);}
+
+#sidebar{background:var(--sidebar);color:var(--s-ink);display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--s-border);}
+.sb-head{padding:18px 16px 10px;border-bottom:1px solid var(--s-border);flex-shrink:0;}
+.sb-wordmark{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--s-ink2);margin-bottom:4px;}
+.sb-title{font-family:'Spectral',serif;font-size:16px;font-weight:600;color:#e8eaf6;margin-bottom:10px;}
+#search{width:100%;background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:12px;padding:6px 10px;outline:none;}
+#search::placeholder{color:var(--s-ink2);}
+
+.bib-switcher{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--s-ink2);}
+.bib-switcher label{flex-shrink:0;text-transform:uppercase;letter-spacing:.08em;font-weight:600;}
+.bib-select{flex:1;min-width:0;background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:11px;padding:5px 8px;outline:none;}
+.bib-select:focus,.bib-browse:hover{border-color:var(--accent);}
+.bib-browse{background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:11px;padding:5px 8px;cursor:pointer;white-space:nowrap;}
+
+.master-btn{width:100%;text-align:left;background:var(--sidebar2);border:1px solid var(--s-border);border-radius:6px;color:var(--s-ink);font-size:12px;font-weight:500;padding:8px 10px;margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.master-btn:hover{border-color:var(--accent);}
+.master-btn.active{background:#1e2a50;border-color:var(--accent);color:#fff;}
+.master-btn.drop-target{border-color:var(--accent);border-style:dashed;}
+
+.filter-toggle-btn{width:100%;text-align:left;background:none;border:none;color:var(--s-ink2);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--s-border);}
+.filter-toggle-btn:hover{color:var(--s-ink);}
+.filter-arrow{display:inline-block;transition:transform .2s;}
+.filter-toggle-btn.open .filter-arrow{transform:rotate(90deg);}
+
+#filter-panel{border-bottom:1px solid var(--s-border);flex-shrink:0;overflow:hidden;max-height:0;transition:max-height .25s ease;}
+#filter-panel.open{max-height:400px;}
+
+.sb-sort{display:flex;gap:4px;flex-wrap:wrap;padding:10px 16px 8px;}
+.sort-btn{background:none;border:1px solid var(--s-border);border-radius:4px;color:var(--s-ink2);font-size:11px;padding:3px 7px;cursor:pointer;}
+.sort-btn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+.filter-group{padding:6px 16px;}
+.filter-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--s-ink2);margin-bottom:4px;}
+.chip-row{display:flex;flex-wrap:wrap;gap:4px;}
+.fchip{font-size:11px;padding:2px 8px;border-radius:12px;background:var(--sidebar2);color:var(--s-ink2);cursor:pointer;border:1px solid var(--s-border);}
+.fchip:hover,.fchip.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+.active-filters{padding:0 16px;display:flex;flex-wrap:wrap;gap:4px;}
+.active-filters.visible{padding:6px 16px;}
+.af-chip{font-size:11px;background:#3a4060;color:#c0c4e0;padding:2px 6px;border-radius:10px;display:flex;align-items:center;gap:4px;}
+.af-chip button{background:none;border:none;color:inherit;cursor:pointer;font-size:12px;line-height:1;}
+
+.sb-count{font-size:10px;color:var(--s-ink2);padding:4px 16px 2px;flex-shrink:0;}
+
+#paper-list{list-style:none;overflow-y:auto;flex:1;padding:6px 0 16px;}
+#paper-list::-webkit-scrollbar{width:4px;}
+#paper-list::-webkit-scrollbar-thumb{background:var(--s-border);border-radius:2px;}
+.pl-item{padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--s-border);transition:background .12s;outline:none;}
+.pl-item:hover{background:var(--sidebar2);}
+.pl-item.active{background:#1e2a50;border-left:3px solid var(--accent);}
+.pl-item:focus{box-shadow:inset 0 0 0 2px var(--accent);}
+.pl-item[draggable="true"]{cursor:grab;}
+.pl-item.drag-over{border-top:2px solid var(--accent);}
+.pl-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.pl-year{font-size:10px;color:var(--s-ink2);}
+.pl-venue-tag{font-size:10px;background:var(--sidebar2);border:1px solid var(--s-border);padding:1px 6px;border-radius:8px;color:var(--s-ink2);}
+.pl-title{font-size:12px;color:#e0e2f0;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.pl-authors{font-size:10px;color:var(--s-ink2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pl-stars{font-size:10px;color:var(--star);margin-top:2px;}
+.pl-empty{padding:20px 16px;color:var(--s-ink2);font-size:12px;text-align:center;}
+
+#main{overflow:hidden;display:flex;flex-direction:column;background:var(--bg2);padding:24px;}
+#welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:40px;}
+#welcome svg{opacity:.2;}
+#welcome h2{font-family:'Spectral',serif;font-size:22px;color:var(--ink);opacity:.45;}
+#welcome p{font-size:13px;max-width:260px;line-height:1.6;color:var(--ink2);}
+#paper-view{flex:1;overflow-y:auto;padding:32px 40px 60px;position:relative;width:100%;background:var(--bg);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06);}
+#paper-view::-webkit-scrollbar{width:5px;}
+#paper-view::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.slide-counter{position:absolute;top:14px;right:16px;font-size:11px;color:var(--ink2);background:var(--tag-bg);padding:2px 9px;border-radius:10px;}
+
+.pv-eyebrow{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+.pv-title{font-family:'Spectral',serif;font-size:24px;font-weight:600;line-height:1.3;margin-bottom:12px;}
+.pv-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;}
+.pill{font-size:12px;background:var(--tag-bg);border-radius:6px;padding:3px 10px;color:var(--ink2);}
+a.pill{color:var(--accent);text-decoration:none;}
+a.pill:hover{text-decoration:underline;}
+
+.pv-rating{display:flex;align-items:center;gap:4px;margin-bottom:12px;}
+.star-btn{background:none;border:none;cursor:pointer;font-size:20px;padding:0 1px;color:#ccc;transition:color .1s;line-height:1;}
+.star-btn.on{color:var(--star);}
+.star-btn:hover{color:var(--star);}
+
+.aff-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.aff-tag{font-size:11px;background:#e8f0fe;color:#3050a0;border-radius:6px;padding:2px 8px;}
+[data-theme="dark"] .aff-tag{background:#1e2a50;color:#7090d0;}
+.kw-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.kw{font-size:11px;background:var(--tag-bg);color:var(--ink2);border-radius:10px;padding:2px 8px;}
+.tag-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.mytag{font-size:11px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:10px;padding:1px 8px;}
+.divider{border:none;border-top:1px solid var(--border);margin:14px 0;}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.tab{background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;padding:7px 14px;font-size:13px;color:var(--ink2);margin-bottom:-1px;}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:500;}
+.tab-pane{display:none;}
+.tab-pane.on{display:block;}
+
+.prose{font-size:14px;line-height:1.7;color:var(--ink);}
+.prose h2{font-family:'Spectral',serif;font-size:18px;margin:20px 0 8px;}
+.prose h3{font-size:14px;font-weight:600;margin:16px 0 6px;}
+.prose p{margin-bottom:10px;}
+.md-gap{height:1.4em;}
+.prose ul{padding-left:20px;margin-bottom:10px;}
+.prose li{margin-bottom:4px;}
+.prose code{background:var(--tag-bg);padding:1px 5px;border-radius:3px;font-size:12px;}
+.prose img{max-width:100%;border-radius:6px;margin:8px 0;cursor:zoom-in;}
+.prose strong{font-weight:600;}
+.prose hr{border:none;border-top:1px solid var(--border);margin:16px 0;}
+.empty-note{color:var(--ink2);font-size:13px;padding:20px 0;}
+.empty-note code{background:var(--tag-bg);padding:2px 6px;border-radius:3px;}
+.empty-note-inline{color:var(--ink2);font-size:13px;opacity:.6;margin-bottom:10px;}
+mark.hl{background:#fbc4c4;color:#5c1414;padding:0 2px;border-radius:2px;}
+[data-theme="dark"] mark.hl{background:#6b2323;color:#ffd7d7;}
+
+.cite-pill{display:inline-block;background:var(--tag-bg);color:var(--accent);border-radius:4px;padding:0 5px;font-size:.92em;font-weight:600;text-decoration:none;cursor:pointer;}
+.cite-pill:hover{background:var(--accent);color:#fff;}
+
+.edit-field{margin-bottom:16px;}
+.edit-field label{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:4px;}
+.edit-field .hl-hint{font-weight:400;color:var(--ink2);font-size:11px;}
+.editor-ta{width:100%;height:16vh;font-family:monospace;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--ink);resize:vertical;}
+.editor-ta.drop-target{border-color:var(--accent);border-style:dashed;}
+
+#shots-panel{border-left:1px solid var(--border);overflow-y:auto;background:var(--bg2);padding:12px 8px;display:flex;flex-direction:column;gap:8px;}
+#shots-panel::-webkit-scrollbar{width:4px;}
+#shots-panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.shot-card img{width:100%;border-radius:6px;cursor:zoom-in;border:1px solid var(--border);display:block;}
+.shot-label{font-size:10px;color:var(--ink2);margin-top:3px;text-align:center;}
+.shots-header{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:4px;text-align:center;}
+
+#theme-btn{position:fixed;bottom:16px;right:16px;background:var(--bg2);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:15px;color:var(--ink2);z-index:10;}
+
+#bib-warning{position:fixed;top:0;left:0;right:0;z-index:100;background:#fef3c7;color:#78350f;font-size:12px;padding:8px 16px;border-bottom:1px solid #f59e0b;display:flex;align-items:center;gap:10px;}
+[data-theme="dark"] #bib-warning{background:#4a3a0a;color:#fde68a;border-bottom-color:#92700a;}
+#bib-warning ul{margin:0;padding-left:18px;flex:1;}
+#bib-warning button{background:none;border:1px solid currentColor;border-radius:4px;color:inherit;cursor:pointer;font-size:11px;padding:2px 8px;flex-shrink:0;}
+
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;}
+.lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;}
+
+@media(max-width:700px){
+  #shell,#shell.has-shots{grid-template-columns:1fr;}
+  #sidebar{height:40vh;}
+  #shots-panel,.shots-resizer{display:none;}
+  #main{padding:0;}
+  #paper-view{padding:18px 18px 40px;max-width:100%;margin:0;border-radius:0;box-shadow:none;}
+}
+</style>
+</head>
+<body>
+
+<div id="bib-warning" hidden><ul id="bib-warning-list"></ul><button onclick="document.getElementById('bib-warning').hidden=true">Dismiss</button></div>
+<div id="shell">
+  <aside id="sidebar">
+    <div class="sb-head">
+      <div class="sb-wordmark">Research Library</div>
+      <div class="sb-title">Paper Collection</div>
+      <input id="search" type="search" placeholder="Search titles, authors, keywords..."
+             oninput="Q.query=this.value; renderList()" autocomplete="off">
+      <div class="bib-switcher">
+        <label for="bib-select">Bib</label>
+        <select id="bib-select" class="bib-select" onchange="switchBib(this.value)"></select>
+        <button type="button" class="bib-browse" onclick="document.getElementById('bib-file').click()">Browse</button>
+        <input id="bib-file" type="file" accept=".bib" hidden onchange="chooseBibFile(this.files && this.files[0])">
+      </div>
+      <button id="master-notes-btn" class="master-btn" onclick="openMaster()">&#x1f4dd; Master Notes</button>
+    </div>
+    <button class="filter-toggle-btn" id="filter-toggle" onclick="toggleFilters()">
+      <span class="filter-arrow">&#x25B6;</span>&nbsp; Sort &amp; Filter
+    </button>
+    <div id="filter-panel">
+      <div class="sb-sort">
+        <button class="sort-btn on" data-s="added"     onclick="setSort(this,'added')">Added</button>
+        <button class="sort-btn"    data-s="year_desc" onclick="setSort(this,'year_desc')">Year &#x2193;</button>
+        <button class="sort-btn"    data-s="year_asc"  onclick="setSort(this,'year_asc')">Year &#x2191;</button>
+        <button class="sort-btn"    data-s="title"     onclick="setSort(this,'title')">A&#x2013;Z</button>
+        <button class="sort-btn"    data-s="rating"    onclick="setSort(this,'rating')">&#x2605; Stars</button>
+        <button class="sort-btn"    data-s="custom"    onclick="setSort(this,'custom')">Custom</button>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Venue</div>
+        <div class="chip-row" id="venue-chips"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">My Tags</div>
+        <div class="chip-row" id="tag-chips"></div>
+      </div>
+    </div>
+    <div class="active-filters" id="active-filters"></div>
+    <div class="sb-count" id="sb-count"></div>
+    <ul id="paper-list"></ul>
+  </aside>
+  <main id="main">
+    <div id="welcome">
+      <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      <h2>Select a paper</h2>
+      <p>Use the sidebar to browse, sort, and filter your collection.</p>
+    </div>
+    <div id="paper-view" hidden></div>
+  </main>
+  <div id="shots-resizer" class="shots-resizer" hidden></div>
+  <div id="shots-panel" hidden></div>
+</div>
+<button id="theme-btn" onclick="toggleTheme()">&#x25D0;</button>
+
+<script>
+
+const Q = { query: '', sort: 'added', venues: new Set(), tags: new Set() };
+let activeKey = null;
+let activeTab = 'notes';
+let lastPaperKey = null;
+let PAPERS = [];
+let customOrder = [];
+let EDIT_MODE = false;
+let BIBS = [];
+let ACTIVE_BIB = '';
+
+function initCustomOrder() {
+  customOrder = [...PAPERS].sort((a, b) => (a.manual_order || 0) - (b.manual_order || 0)).map(p => p.key);
+}
+
+function populateBibSwitcher(bibs, activeBib) {
+  BIBS = bibs || [];
+  ACTIVE_BIB = activeBib || ACTIVE_BIB || '';
+  const select = document.getElementById('bib-select');
+  if (!select) return;
+  select.innerHTML = BIBS.map(b => '<option value="' + escHtml(b) + '">' + escHtml(b) + '</option>').join('');
+  if (ACTIVE_BIB && BIBS.includes(ACTIVE_BIB)) select.value = ACTIVE_BIB;
+}
+
+async function loadBibSwitcher() {
+  const resp = await fetch('/api/bibs').catch(() => null);
+  if (!resp) return;
+  const data = await resp.json();
+  populateBibSwitcher(data.bibs || [], data.active_bib || '');
+}
+
+async function switchBib(name) {
+  if (!name || name === ACTIVE_BIB) return;
+  const resp = await fetch('/api/layout', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active_bib: name })
+  }).catch(() => null);
+  if (!resp) return;
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || data.ok === false) return;
+  ACTIVE_BIB = name;
+  await loadPapers();
+  await openMaster();
+}
+
+function chooseBibFile(file) {
+  if (!file || !file.name) return;
+  switchBib(file.name);
+  const picker = document.getElementById('bib-file');
+  if (picker) picker.value = '';
+}
+
+function reorderCustom(draggedKey, targetKey) {
+  const from = customOrder.indexOf(draggedKey);
+  const to = customOrder.indexOf(targetKey);
+  if (from < 0 || to < 0 || from === to) return;
+  customOrder.splice(from, 1);
+  customOrder.splice(to, 0, draggedKey);
+}
+
+function saveCustomOrder() {
+  fetch('/api/layout', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order: customOrder, view: 'list' })
+  }).catch(() => {});
+}
+
+function stripYear(v) { return v.replace(/\s*['`]?\d{2,4}$/, '').trim(); }
+
+function filtered() {
+  let list = [...PAPERS];
+  const q = Q.query.toLowerCase().trim();
+  if (q) list = list.filter(p =>
+    p.title.toLowerCase().includes(q) ||
+    p.authors.toLowerCase().includes(q) ||
+    (p.keywords||[]).some(k => k.toLowerCase().includes(q)) ||
+    (p.venue_short||'').toLowerCase().includes(q) ||
+    (p.venue_full||'').toLowerCase().includes(q) ||
+    (p.affiliations||[]).some(a => a.toLowerCase().includes(q)) ||
+    String(p.year).includes(q)
+  );
+  if (Q.venues.size) list = list.filter(p => Q.venues.has(stripYear(p.venue_short||'')));
+  if (Q.tags.size)   list = list.filter(p => (p.tags||[]).some(t => Q.tags.has(t)));
+  const cmp = {
+    added:     (a,b) => (a.add_order||0) - (b.add_order||0),
+    year_desc: (a,b) => b.year - a.year,
+    year_asc:  (a,b) => a.year - b.year,
+    title:     (a,b) => a.title.localeCompare(b.title),
+    venue:     (a,b) => (a.venue_short||'').localeCompare(b.venue_short||''),
+    rating:    (a,b) => (b.rating||0) - (a.rating||0),
+    custom:    (a,b) => customOrder.indexOf(a.key) - customOrder.indexOf(b.key),
+  };
+  list.sort(cmp[Q.sort] || cmp.added);
+  return list;
+}
+
+function setSort(btn, key) {
+  Q.sort = key;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('on', b.dataset.s === key));
+  renderList();
+}
+
+function toggleFilters() {
+  document.getElementById('filter-panel').classList.toggle('open');
+  document.getElementById('filter-toggle').classList.toggle('open');
+}
+
+function toggleVenue(v) { Q.venues.has(v) ? Q.venues.delete(v) : Q.venues.add(v); renderList(); }
+function toggleTag(t)   { Q.tags.has(t)   ? Q.tags.delete(t)   : Q.tags.add(t);   renderList(); }
+
+function starsStr(n) {
+  let s = '';
+  for (let i = 1; i <= 3; i++) s += i <= n ? '●' : '○';
+  return s;
+}
+
+function renderList() {
+  const list = filtered();
+  const ul = document.getElementById('paper-list');
+  if (!list.length) {
+    ul.innerHTML = '<li class="pl-empty">No papers match.</li>';
+  } else {
+    ul.innerHTML = list.map(p =>
+      '<li class="pl-item' + (activeKey===p.key?' active':'') + '" tabindex="0" data-key="' + p.key + '" onclick="openPaper(\'' + p.key + '\')">' +
+        '<div class="pl-meta">' +
+          '<span class="pl-year">' + p.year + '</span>' +
+          '<span class="pl-venue-tag">' + stripYear(p.venue_short||'') + '</span>' +
+        '</div>' +
+        '<div class="pl-title">' + escHtml(p.title) + '</div>' +
+        '<div class="pl-authors">' + escHtml(p.authors||'') + '</div>' +
+        '<div class="pl-stars">' + starsStr(p.rating||0) + '</div>' +
+      '</li>'
+    ).join('');
+    if (EDIT_MODE) {
+      ul.querySelectorAll('.pl-item').forEach(li => {
+        li.draggable = true;
+        li.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', li.dataset.key); });
+        li.addEventListener('dragover', e => { e.preventDefault(); li.classList.add('drag-over'); });
+        li.addEventListener('dragleave', () => li.classList.remove('drag-over'));
+        li.addEventListener('drop', e => {
+          e.preventDefault();
+          li.classList.remove('drag-over');
+          const draggedKey = e.dataTransfer.getData('text/plain');
+          if (draggedKey === li.dataset.key) return;
+          reorderCustom(draggedKey, li.dataset.key);
+          if (Q.sort !== 'custom') {
+            Q.sort = 'custom';
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('on', b.dataset.s === 'custom'));
+          }
+          renderList();
+          saveCustomOrder();
+        });
+      });
+    }
+  }
+  document.getElementById('sb-count').textContent = list.length + ' of ' + PAPERS.length + ' papers';
+
+  const af = document.getElementById('active-filters');
+  af.innerHTML = '';
+  const mkChip = (label, rmFn) => {
+    const span = document.createElement('span'); span.className = 'af-chip';
+    span.textContent = label + ' ';
+    const btn = document.createElement('button'); btn.textContent = '\xd7';
+    btn.addEventListener('click', rmFn);
+    span.appendChild(btn); af.appendChild(span);
+  };
+  Q.venues.forEach(v => mkChip(v, () => { Q.venues.delete(v); renderList(); }));
+  Q.tags.forEach(t => mkChip('#'+t, () => { Q.tags.delete(t); renderList(); }));
+  af.className = 'active-filters' + (af.children.length ? ' visible' : '');
+}
+
+function buildFilterChips() {
+  const baseVenues = [...new Set(PAPERS.map(p => stripYear(p.venue_short||'')))].sort();
+  const vcRow = document.getElementById('venue-chips');
+  vcRow.innerHTML = '';
+  baseVenues.forEach(v => {
+    const el = document.createElement('span');
+    el.className = 'fchip'; el.dataset.v = v; el.textContent = v;
+    el.addEventListener('click', () => toggleVenue(v));
+    vcRow.appendChild(el);
+  });
+  const tagFreq = {};
+  PAPERS.forEach(p => (p.tags||[]).forEach(t => { tagFreq[t] = (tagFreq[t]||0)+1; }));
+  const topTags = Object.entries(tagFreq).sort((a,b) => b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,16);
+  const tagRow = document.getElementById('tag-chips');
+  tagRow.innerHTML = '';
+  topTags.forEach(([t,n]) => {
+    const el = document.createElement('span');
+    el.className = 'fchip'; el.dataset.t = t;
+    el.innerHTML = escHtml(t) + (n>1 ? ' <small style="opacity:.6">'+n+'</small>' : '');
+    el.addEventListener('click', () => toggleTag(t));
+    tagRow.appendChild(el);
+  });
+}
+
+function switchTab(btn, id) {
+  btn.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  activeTab = id;
+}
+
+function activateTab(id) {
+  const tabsWrap = document.querySelector('.tabs');
+  if (!tabsWrap) return;
+  const btn = tabsWrap.querySelector('[data-tab="'+id+'"]') || tabsWrap.querySelector('.tab');
+  if (btn) switchTab(btn, btn.dataset.tab);
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function md(src) {
+  if (!src) return '';
+  src = src.replace(/<!--[\s\S]*?-->/g, '');
+  src = src.replace(/^#{1,2} (.+)$/gm, '<h2>$1</h2>');
+  src = src.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  src = src.replace(/==([\s\S]+?)==/g, '<mark class="hl">$1</mark>');
+  src = src.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  src = src.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  src = src.replace(/`(.+?)`/g, '<code>$1</code>');
+  src = src.replace(/^---+$/gm, '<hr>');
+  src = src.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+  // Split on blank lines, keeping the separators so that each *extra* blank
+  // line (3+ newlines in a row) becomes a visible gap instead of collapsing.
+  return src.split(/(\n{2,})/).map(b => {
+    if (/^\n{2,}$/.test(b)) return '<div class="md-gap"></div>'.repeat(b.length - 2);
+    b = b.trim(); if (!b) return '';
+    if (/^<(h[123]|hr|li|ul)/.test(b)) return b.includes('<li>') ? '<ul>'+b+'</ul>' : b;
+    return '<p>'+b.replace(/\n/g,' ')+'</p>';
+  }).join('\n');
+}
+
+function lightbox(src) {
+  const d = document.createElement('div');
+  d.className = 'lightbox';
+  const img = document.createElement('img'); img.src = src;
+  d.appendChild(img); d.onclick = () => d.remove(); document.body.appendChild(d);
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('theme', next); } catch(e) {}
+}
+
+function renderShots(imgs, keyName, baseUrl) {
+  const panel = document.getElementById('shots-panel');
+  const shell = document.getElementById('shell');
+  const resizer = document.getElementById('shots-resizer');
+  if (!imgs || !imgs.length) {
+    panel.hidden = true;
+    if (resizer) resizer.hidden = true;
+    shell.classList.remove('has-shots');
+    return;
+  }
+  panel.hidden = false;
+  if (resizer) resizer.hidden = false;
+  shell.classList.add('has-shots');
+  panel.innerHTML = '<div class="shots-header">Screenshots</div>' +
+    imgs.map(function(s, i) {
+      const src = baseUrl ? baseUrl + s : 'imgs/' + keyName + '/' + s;
+      return '<div class="shot-card"><img src="' + src + '" onclick="lightbox(this.src)" alt="' + escHtml(s) + '">' +
+        '<div class="shot-label">' + (i+1) + ' / ' + imgs.length + '</div></div>';
+    }).join('');
+}
+
+function starsEditHtml(key, rating) {
+  let h = '<div class="pv-rating">';
+  for (let i = 1; i <= 3; i++) {
+    const next = i === rating ? 0 : i; // clicking the active circle clears it back to 0
+    h += '<button class="star-btn' + (i<=rating?' on':'') + '" onclick="setRating(\'' + key + '\',' + next + ')" title="' + i + '">' + (i<=rating?'●':'○') + '</button>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function sectionsHtml(p, renderer) {
+  function block(title, content) {
+    if (!content || !content.trim()) return '';
+    return '<h3>' + title + '</h3><div class="prose">' + renderer(content) + '</div>';
+  }
+  return block('Quotes', p.quotes) + block('My Thoughts', p.thoughts) + block('Sense', p.apply);
+}
+
+function wireHighlight(ta) {
+  if (!ta) return;
+  ta.addEventListener('keydown', e => {
+    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'h') return;
+    const s = ta.selectionStart, en = ta.selectionEnd;
+    if (s === en) return;
+    e.preventDefault();
+    const val = ta.value;
+    const sel = val.slice(s, en);
+    let newVal, newStart, newEnd;
+    if (sel.startsWith('==') && sel.endsWith('==') && sel.length >= 4) {
+      const inner = sel.slice(2, -2);
+      newVal = val.slice(0, s) + inner + val.slice(en);
+      newStart = s; newEnd = s + inner.length;
+    } else {
+      newVal = val.slice(0, s) + '==' + sel + '==' + val.slice(en);
+      newStart = s; newEnd = s + sel.length + 4;
+    }
+    ta.value = newVal;
+    ta.setSelectionRange(newStart, newEnd);
+    ta.dispatchEvent(new Event('input'));
+  });
+}
+
+function citePill(key) {
+  const p = PAPERS.find(function(x){ return x.key === key; });
+  if (!p) return null;
+  return '<a class="cite-pill" onclick="openPaper(\'' + key + '\')" title="' + escHtml(p.title) + '">[' + key + ']</a>';
+}
+
+function renderMasterView(content) {
+  if (!content || !content.trim()) return '';
+  let html = md(content);
+  // LaTeX-style citations, written as ~\cite{key} (or \cite{a, b}) so the
+  // notes paste straight into a .tex file. The ~ is LaTeX's non-breaking
+  // space, so it renders as a plain space here.
+  // The older [key] form still works. One combined pass, so a pill produced
+  // for \cite{} isn't re-matched as [key].
+  html = html.replace(/~?\\cite\{([^}]+)\}|\[([A-Za-z0-9_]+)\]/g, function(m, keys, single) {
+    if (single !== undefined) return citePill(single) || m;
+    const pills = keys.split(',').map(function(k){ return k.trim(); }).filter(Boolean)
+      .map(function(k){ return citePill(k) || '[' + escHtml(k) + ']'; });
+    return (m.charAt(0) === '~' ? ' ' : '') + pills.join(' ');
+  });
+  return '<div class="prose">' + html + '</div>';
+}
+
+function wireCitationDrop(ta) {
+  if (!ta) return;
+  ta.addEventListener('dragover', e => { e.preventDefault(); ta.classList.add('drop-target'); });
+  ta.addEventListener('dragleave', () => ta.classList.remove('drop-target'));
+  ta.addEventListener('drop', e => {
+    e.preventDefault();
+    ta.classList.remove('drop-target');
+    const draggedKey = e.dataTransfer.getData('text/plain');
+    if (!draggedKey) return;
+    const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
+    const insert = '~\\cite{' + draggedKey + '}';
+    ta.value = ta.value.slice(0, pos) + insert + ta.value.slice(pos);
+    const newPos = pos + insert.length;
+    ta.focus();
+    ta.setSelectionRange(newPos, newPos);
+  });
+}
+
+function showBibWarnings(warnings) {
+  const banner = document.getElementById('bib-warning');
+  const list = document.getElementById('bib-warning-list');
+  if (!banner || !list || !warnings || !warnings.length) return;
+  list.innerHTML = warnings.map(w => '<li>&#x26a0; ' + escHtml(w) + '</li>').join('');
+  banner.hidden = false;
+}
+
+document.addEventListener('keydown', e => {
+  const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea') return;
+
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const list = filtered();
+    if (!list.length) return;
+    let idx = list.findIndex(p => p.key === activeKey);
+    if (e.key === 'ArrowDown') idx = idx < 0 ? 0 : Math.min(list.length - 1, idx + 1);
+    else idx = idx < 0 ? 0 : Math.max(0, idx - 1);
+    e.preventDefault();
+    openPaper(list[idx].key);
+    const li = document.querySelector('.pl-item[data-key="' + list[idx].key + '"]');
+    if (li) { li.focus(); if (li.scrollIntoView) li.scrollIntoView({ block: 'nearest' }); }
+    return;
+  }
+
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    const tabsWrap = document.querySelector('.tabs');
+    if (!tabsWrap) return;
+    const btns = [...tabsWrap.querySelectorAll('.tab')];
+    if (!btns.length) return;
+    let idx = btns.findIndex(b => b.classList.contains('on'));
+    if (idx < 0) idx = 0;
+    idx = e.key === 'ArrowRight' ? Math.min(btns.length - 1, idx + 1) : Math.max(0, idx - 1);
+    e.preventDefault();
+    switchTab(btns[idx], btns[idx].dataset.tab);
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    if (!activeKey) return;
+    e.preventDefault();
+    if (activeKey === '__master__') {
+      if (lastPaperKey) openPaper(lastPaperKey);
+    } else {
+      openMaster();
+    }
+  }
+});
+
+function applyShotsWidth(w) {
+  const shell = document.getElementById('shell');
+  if (shell) shell.style.setProperty('--shots-w', w + 'px');
+}
+
+function initShotsResizer() {
+  const resizer = document.getElementById('shots-resizer');
+  if (!resizer) return;
+  let saved = null;
+  try { saved = localStorage.getItem('shotsWidth'); } catch (e) {}
+  if (saved) applyShotsWidth(parseInt(saved, 10));
+
+  resizer.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const panel = document.getElementById('shots-panel');
+    const startX = e.clientX;
+    const startWidth = panel.getBoundingClientRect().width;
+    resizer.classList.add('dragging');
+    let currentWidth = startWidth;
+    function onMove(ev) {
+      const delta = startX - ev.clientX; // dragging left = wider panel
+      currentWidth = Math.max(160, Math.min(560, startWidth + delta));
+      applyShotsWidth(currentWidth);
+    }
+    function onUp() {
+      resizer.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      try { localStorage.setItem('shotsWidth', String(Math.round(currentWidth))); } catch (e) {}
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+try {
+  const t = localStorage.getItem('theme');
+  if (t) document.documentElement.setAttribute('data-theme', t);
+} catch(e) {}
+
+let MASTER_CONTENT = '';
+
+(function() {
+  function init(papers) {
+    PAPERS = papers;
+    initCustomOrder();
+    buildFilterChips();
+    renderList();
+    initShotsResizer();
+    const switcher = document.querySelector('.bib-switcher');
+    if (switcher) switcher.remove();
+  }
+  fetch('papers.json')
+    .then(function(r){ return r.json(); })
+    .then(init)
+    .catch(function() { init([
+  {
+    "key": "rhys2025beyond",
+    "title": "Beyond Productivity: Rethinking the Impact of Creativity Support Tools",
+    "authors": "Rhys Cox, Samuel and B{o}jer Djernes, Helena and van Berkel, Niels",
+    "year": 2025,
+    "venue_short": "C&C '25",
+    "venue_full": "Proceedings of the 2025 Conference on Creativity and Cognition",
+    "doi": "10.1145/3698061.3726924",
+    "abstract": "Creativity Support Tools (CSTs) are widely used across diverse creative domains, with generative AI recently increasing the abilities of CSTs. To better understand how the success of CSTs is determined in the literature, we conducted a review of outcome measures used in CST evaluations. Drawing from (n=173) CST evaluations in the ACM Digital Library, we identified the metrics commonly employed to assess user interactions with CSTs. Our findings reveal prevailing trends in current evaluation practices, while exposing underexplored measures that could broaden the scope of future research. Based on these results, we argue for a more holistic approach to evaluating CSTs, encouraging the HCI community to consider not only user experience and the quality of the generated output, but also user-centric aspects such as self-reflection and well-being as critical dimensions of assessment. We also highlight a need for validated measures specifically suited to the evaluation of generative AI in CSTs.",
+    "abstract_hl": "Creativity Support Tools (CSTs) are widely used across diverse creative domains, with generative AI recently increasing the abilities of CSTs. To better understand how the success of CSTs is determined in the literature, we conducted a review of outcome measures used in CST evaluations. Drawing from (n=173) CST evaluations in the ACM Digital Library, we identified the metrics commonly employed to assess user interactions with CSTs. Our findings reveal prevailing trends in current evaluation practices, while exposing underexplored measures that could broaden the scope of future research. Based on these results, we argue for a more holistic approach to evaluating CSTs, encouraging the HCI community to consider not only user experience and the quality of the generated output, but also user-centric aspects such as self-reflection and well-being as critical dimensions of assessment. We also highlight a need for validated measures specifically suited to the evaluation of generative AI in CSTs.",
+    "keywords": [
+      "Creativity",
+      "Creativity Support Tools (CSTs)",
+      "Literature Review",
+      "Evaluation Measures",
+      "Outcome Measures"
+    ],
+    "affiliations": [
+      "Aalborg University"
+    ],
+    "quotes": "# Abstract\n==Creativity Support Tools ==(CSTs) are widely used across diverse creative domains, with generative AI recently increasing the abilities of CSTs. To better understand how the success of CSTs is determined in the literature, we conducted a review of outcome measures used in CST evaluations. Drawing from (n=173) CST evaluations in the ACM Digital Library, we identified the metrics commonly employed to assess user interactions with CSTs. Our findings reveal prevailing trends in current evaluation practices, while exposing underexplored measures that could broaden the scope of future research. Based on these results, we argue for a more holistic approach to evaluating CSTs, encouraging the HCI community to consider not only user experience and the quality of the generated output, but also user-centric aspects such as self-reflection and well-being as critical dimensions of assessment. We also highlight a need for validated measures specifically suited to the evaluation of generative AI in CSTs.",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "## Summary\nThis paper presents a systematic review of outcome measures used in 173 empirical studies of Creativity Support Tools (CSTs) from the ACM Digital Library (2015–2024). The authors find that while user experience (90%) and creative artefact quality (54%) are frequently measured, user-centric benefits like well-being, self-reflection, and skill development are rarely assessed (15%). They argue for a more holistic approach to CST evaluation that considers benefits to users themselves, not just productivity outcomes.\n\n## Affiliations\nSamuel Rhys Cox, Helena Bøjer Djernæs, Niels van Berkel - Department of Computer Science, Aalborg University, Denmark\n\n<Aalborg University>\n\n## Core Contributions\n- Systematic categorization of CST outcome measures into three themes: User Experience with CST, Creative Artefact Quality, and User-Centric Benefits\n- Identification of a significant gap in research: only 15% of studies measure user-centric benefits (learning, well-being, self-reflection, self-perception)\n- Documentation of prevalent reliance on ad hoc measures, particularly for evaluating human-AI collaboration in CSTs\n- Call for validated measures specifically suited to evaluating generative AI in creativity contexts\n- Comprehensive mapping of 173 papers across measure types, venues, and years (2015-2024)\n\n## Methodology\n- **Scope:** 10-year review (2015-2024) of ACM Digital Library publications\n- **Search Strategy:** Searched \"creativity support tool\" anywhere in publication + \"creativity\" as keyword\n- **Initial Results:** 1,241 papers screened down to 173 included papers\n- **Analysis:** Two researchers conducted thematic analysis using open coding to extract outcome measures\n- **Inclusion Criteria:** Empirical evaluations of user interactions with CSTs, including human-AI co-creativity tools\n- **Exclusion Criteria:** Formative work, fully automated systems, taxonomy development, observational-only studies, insufficient measure descriptions\n\n## Key Findings\n- **User Experience (90% of studies):** General usability measures dominated (n=101), with SUS (n=20) and CSI (n=50) being common validated scales; many ad hoc measures used\n- **Creative Artefact Quality (54%):** Well-established measures from creativity literature (fluency, flexibility, originality, elaboration from TTCT); human ratings and quantitative content analysis\n- **User-Centric Benefits (15%):** Included intrinsic abilities (n=13), emotional well-being (n=6), self-reflection (n=6), self-perception (n=5); often used pre/post-test designs\n- **Generative AI Gap:** Studies evaluating human-AI collaboration increasingly rely on ad hoc measures, indicating need for validated scales addressing ownership, agency, and collaboration dynamics\n- **Publication Trends:** CHI (n=55), C&C (n=28), DIS (n=16), UIST (n=16) were top venues\n\n## Limitations & Future Work\n**Limitations:**\n- Review limited to ACM Digital Library only; other repositories (IEEE Xplore, Science Direct) may contain additional measures\n- Definition of CST varies across literature; authors chose to include co-creative AI systems\n- Exploratory studies excluded, which may contain user-centric measures not captured\n\n**Future Directions:**\n- Development of validated measures for human-AI co-creativity experiences\n- Greater emphasis on longitudinal studies to assess behavior change and well-being outcomes\n- Integration of measures from conversational user interface (CUI) research\n- Adoption of user-centric outcomes informed by health/arts research (citing Fancourt & Finn's WHO scoping review)\n\n## Connection to User Notes\nThe user's notes are empty—no key points, relevance, or personal annotations were provided. The paper would be relevant to researchers interested in: (1) methodology for evaluating creative AI tools, (2) human-AI collaboration in creative contexts, (3) well-being and personal benefits of creative technology use, or (4) systematic review methodology in HCI.\n\n## Related Work Cited\n- **Frich et al. (2019)** - \"Mapping the Landscape of Creativity Support Tools in HCI\" - foundational CST review covering methodological approaches\n- **Cherry & Latulipe (2014)** - Creativity Support Index (CSI) - most widely adopted validated measure for creativity support evaluation\n- **Fancourt & Finn (2019)** - WHO scoping review on arts and health/well-being - provides foundation for user-centric benefits\n- **Remy et al. (2020)** - Prior review of CST evaluation methodologies (differentiated from current work's focus on outcome measures)\n- **Lawton et al. (2023)** - Mixed-Initiative Creativity Support Index (MICSI) - extends CSI for human-AI co-creation contexts\n\n\n---\n_Generated 2026-09-10 by Claude (model: claude-opus-4-5)_\n",
+    "rating": 0,
+    "add_order": 0,
+    "manual_order": 100000,
+    "imgs": [
+      "rhys2025beyond_01.png"
+    ]
+  },
+  {
+    "key": "williams2024doodlebot",
+    "title": "Doodlebot: An Educational Robot for Creativity and AI Literacy",
+    "authors": "Williams, Randi and Ali, Safinah and Alcantara, Ra{\\'u}l and Burghleh, Tasneem and Alghowinem, Sharifa and Breazeal, Cynthia",
+    "year": 2024,
+    "venue_short": "HRI '24",
+    "venue_full": "Proceedings of the 2024 ACM/IEEE International Conference on Human-Robot Interaction",
+    "doi": "10.1145/3610977.3634950",
+    "abstract": "Today, Artificial Intelligence (AI) is prevalent in everyday life, with emerging technologies like AI companions, autonomous vehicles, and AI art tools poised to significantly transform the future. The development of AI curricula that shows people how AI works and what they can do with it is a powerful way to prepare everyone, and especially young learners, for an increasingly AI-driven world. Educators often employ robotic toolkits in the classroom to boost engagement and learning. However, these platforms are generally unsuitable for young learners and learners without programming expertise. Moreover, these platforms often serve as either programmable artifacts or pedagogical agents, rarely capitalizing on the opportunity to support students in both capacities. We designed Doodlebot, a mobile social robot for hands-on AI education to address these gaps. Doodlebot is an effective tool for exploring AI with grade school (K-12) students, promoting their understanding of AI concepts such as perception, representation, reasoning and generation. We begin by elaborating Doodlebot's design, highlighting its reliability, user-friendliness, and versatility. Then, we demonstrate Doodlebot's versatility through example curricula about AI character design, autonomous robotics, and generative AI accessible to young learners. Finally, we share the results of a preliminary user study with elementary school youth where we found that the physical Doodlebot platform was as effective and user-friendly as the virtual version. This work offers insights into designing interactive educational robots that can inform future AI curricula and tools.",
+    "abstract_hl": "Today, Artificial Intelligence (AI) is prevalent in everyday life, with emerging technologies like AI companions, autonomous vehicles, and AI art tools poised to significantly transform the future. The development of AI curricula that shows people how AI works and what they can do with it is a powerful way to prepare everyone, and especially young learners, for an increasingly AI-driven world. Educators often employ robotic toolkits in the classroom to boost engagement and learning. However, these platforms are generally unsuitable for young learners and learners without programming expertise. Moreover, these platforms often serve as either programmable artifacts or pedagogical agents, rarely capitalizing on the opportunity to support students in both capacities. We designed Doodlebot, a mobile social robot for hands-on AI education to address these gaps. Doodlebot is an effective tool for exploring AI with grade school (K-12) students, promoting their understanding of AI concepts such as perception, representation, reasoning and generation. We begin by elaborating Doodlebot's design, highlighting its reliability, user-friendliness, and versatility. Then, we demonstrate Doodlebot's versatility through example curricula about AI character design, autonomous robotics, and generative AI accessible to young learners. Finally, we share the results of a ==preliminary user study== with elementary school youth where we found that the ==physical Doodlebot platform== was as effective and user-friendly as the virtual version. This work offers insights into ==designing interactive educational robots== that can inform future AI curricula and tools.",
+    "keywords": [
+      "collaboration",
+      "creativity",
+      "education",
+      "social robots"
+    ],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 1,
+    "manual_order": 100001,
+    "imgs": []
+  },
+  {
+    "key": "van2021human",
+    "title": "Human-AI interaction: intermittent, continuous, and proactive",
+    "authors": "van Berkel, Niels and Skov, Mikael B. and Kjeldskov, Jesper",
+    "year": 2021,
+    "venue_short": "Interactions '21",
+    "venue_full": "Interactions",
+    "doi": "10.1145/3486941",
+    "abstract": "",
+    "abstract_hl": "",
+    "keywords": [],
+    "affiliations": [],
+    "quotes": "Therefore, we encourage\nfuture work in the areas of ==continuous\nand proactive== human-AI interaction,\nensuring the usability of the next\ngeneration of interactive systems.",
+    "thoughts": "",
+    "apply": "Therefore, we encourage\nfuture work in the areas of continuous\nand proactive human-AI interaction,\nensuring the usability of the next\ngeneration of interactive systems.",
+    "tags": [
+      "consideration"
+    ],
+    "ai": "",
+    "rating": 0,
+    "add_order": 2,
+    "manual_order": 100002,
+    "imgs": []
+  },
+  {
+    "key": "mcreynolds2017toys",
+    "title": "Toys that Listen: A Study of Parents, Children, and Internet-Connected Toys",
+    "authors": "McReynolds, Emily and Hubbard, Sarah and Lau, Timothy and Saraf, Aditya and Cakmak, Maya and Roesner, Franziska",
+    "year": 2017,
+    "venue_short": "CHI '17",
+    "venue_full": "Proceedings of the 2017 CHI Conference on Human Factors in Computing Systems",
+    "doi": "10.1145/3025453.3025735",
+    "abstract": "Hello Barbie, CogniToys Dino, and Amazon Echo are part of a new wave of connected toys and gadgets for the home that listen. Unlike the smartphone, these devices are always on, blending into the background until needed. We conducted interviews with parent-child pairs in which they interacted with Hello Barbie and CogniToys Dino, shedding light on children's expectations of the toys' \"intelligence'\" and parents' privacy concerns and expectations for parental controls. We find that children were often unaware that others might be able to hear what was said to the toy, and that some parents draw connections between the toys and similar tools not intended as toys (e.g., Siri, Alexa) with which their children already interact. Our findings illuminate people's mental models and experiences with these emerging technologies and will help inform the future designs of interactive, connected toys and gadgets. We conclude with recommendations for parents, designers, and policy makers.",
+    "abstract_hl": "Hello Barbie, CogniToys Dino, and Amazon Echo are part of a new wave of connected toys and gadgets for the home that listen. Unlike the smartphone, these devices are always on, blending into the background until needed. We conducted interviews with parent-child pairs in which they interacted with Hello Barbie and CogniToys Dino, shedding light on children's expectations of the toys' \"intelligence'\" and parents' privacy concerns and expectations for parental controls. We find that children were often unaware that others might be able to hear what was said to the toy, and that some parents draw connections between the toys and similar tools not intended as toys (e.g., Siri, Alexa) with which their children already interact. Our findings illuminate people's mental models and experiences with these emerging technologies and will help inform the future designs of interactive, connected toys and gadgets. We conclude with recommendations for parents, designers, and policy makers.",
+    "keywords": [
+      "children",
+      "connected toys",
+      "parents",
+      "privacy"
+    ],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 3,
+    "manual_order": 100003,
+    "imgs": []
+  },
+  {
+    "key": "chung2025toyteller",
+    "title": "Toyteller: AI-powered Visual Storytelling Through Toy-Playing with Character Symbols",
+    "authors": "Chung, John Joon Young and Roemmele, Melissa and Kreminski, Max",
+    "year": 2025,
+    "venue_short": "CHI '25",
+    "venue_full": "Proceedings of the 2025 CHI Conference on Human Factors in Computing Systems",
+    "doi": "10.1145/3706598.3713435",
+    "abstract": "We introduce Toyteller, an AI-powered storytelling system where users generate a mix of story text and visuals by directly manipulating character symbols like they are toy-playing. Anthropomorphized symbol motions can convey rich and nuanced social interactions; Toyteller leverages these motions (1) to let users steer story text generation and (2) as a visual output format that accompanies story text. We enabled motion-steered text generation and text-steered motion generation by mapping motions and text onto a shared semantic space so that large language models and motion generation models can use it as a translational layer. Technical evaluations showed that Toyteller outperforms a competitive baseline, GPT-4o. Our user study identified that toy-playing helps express intentions difficult to verbalize. However, only motions could not express all user intentions, suggesting combining it with other modalities like language. We discuss the design space of toy-playing interactions and implications for technical HCI research on human-AI interaction.",
+    "abstract_hl": "We introduce Toyteller, an AI-powered storytelling system where users generate a mix of story text and visuals by directly manipulating character symbols like they are toy-playing. Anthropomorphized symbol motions can convey rich and nuanced social interactions; Toyteller leverages these motions (1) to let users steer story text generation and (2) as a visual output format that accompanies story text. We enabled motion-steered text generation and text-steered motion generation by mapping motions and text onto a shared semantic space so that large language models and motion generation models can use it as a translational layer. Technical evaluations showed that Toyteller outperforms a competitive baseline, GPT-4o. Our user study identified that toy-playing helps express intentions difficult to verbalize. However, only motions could not express all user intentions, suggesting combining it with other modalities like language. We discuss the design space of toy-playing interactions and implications for technical HCI research on human-AI interaction.",
+    "keywords": [
+      "visual storytelling",
+      "toy-playing",
+      "generative AI"
+    ],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 4,
+    "manual_order": 100004,
+    "imgs": []
+  },
+  {
+    "key": "tseng2021plushpal",
+    "title": "PlushPal: Storytelling with Interactive Plush Toys and Machine Learning",
+    "authors": "Tseng, Tiffany and Murai, Yumiko and Freed, Natalie and Gelosi, Deanna and Ta, Tung D. and Kawahara, Yoshihiro",
+    "year": 2021,
+    "venue_short": "20th Interaction Design '21",
+    "venue_full": "Proceedings of the 20th Annual ACM Interaction Design and Children Conference",
+    "doi": "10.1145/3459990.3460694",
+    "abstract": "This paper presents PlushPal, a web-based design tool for children to make plush toys interactive with machine learning (ML). With PlushPal, children attach micro:bit hardware to stuffed animals, design custom gestures for their toy, and build gesture-recognition ML models to trigger their own sounds. We describe how, in the context of storytelling, PlushPal introduces core concepts in ML including data sampling and model evaluation. We conducted online workshops and in-person play sessions with 11 children between 8-14 years old building interactive stuffed animals with PlushPal. In these play sessions, we observed how children imagined bringing their toys to life using ML, as well as how children’s data literacy changed as a result of experimenting with sensors, data sampling, and building their own ML models. Our work contributes a novel design space for children to express their ideas using gesture, as well as a description of observed debugging practices, building on efforts to support children using ML to enhance creative play.",
+    "abstract_hl": "This paper presents PlushPal, a web-based design tool for children to make plush toys interactive with machine learning (ML). With PlushPal, children attach micro:bit hardware to stuffed animals, design custom gestures for their toy, and build gesture-recognition ML models to trigger their own sounds. We describe how, in the context of storytelling, PlushPal introduces core concepts in ML including data sampling and model evaluation. We conducted online workshops and in-person play sessions with 11 children between 8-14 years old building interactive stuffed animals with PlushPal. In these play sessions, we observed how children imagined bringing their toys to life using ML, as well as how children’s data literacy changed as a result of experimenting with sensors, data sampling, and building their own ML models. Our work contributes a novel design space for children to express their ideas using gesture, as well as a description of observed debugging practices, building on efforts to support children using ML to enhance creative play.",
+    "keywords": [
+      "children",
+      "machine learning",
+      "physical computing",
+      "play"
+    ],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 5,
+    "manual_order": 100005,
+    "imgs": []
+  },
+  {
+    "key": "skulmowski2018embodied",
+    "title": "Embodied learning: Introducing a taxonomy based on bodily engagement and task integration",
+    "authors": "Skulmowski, Alexander and Rey, G{\\\"u}nter Daniel",
+    "year": 2018,
+    "venue_short": "Cognitive research: principles '18",
+    "venue_full": "Cognitive research: principles and implications",
+    "doi": "10.1186/s41235-018-0092-9",
+    "abstract": "Research on learning and education is increasingly influenced by theories of embodied cognition. Several embodiment-based interventions have been empirically investigated, including gesturing, interactive digital media, and bodily activity in general. This review aims to present the most important theoretical foundations of embodied cognition and their application to educational research. Furthermore, we critically review recent research concerning the effectiveness of embodiment interventions and develop a taxonomy to more properly characterize research on embodied cognition. The main dimensions of this taxonomy are bodily engagement (i.e. how much bodily activity is involved) and task integration (i.e. whether bodily activities are related to a learning task in a meaningful way or not). By locating studies on the 2 × 2 grid resulting from this taxonomy and assessing the corresponding learning outcomes, we identify opportunities, problems, and challenges of research on embodied learning.",
+    "abstract_hl": "Research on learning and education is increasingly influenced by theories of embodied cognition. Several embodiment-based interventions have been empirically investigated, including gesturing, interactive digital media, and bodily activity in general. This review aims to present the most important theoretical foundations of embodied cognition and their application to educational research. Furthermore, we critically review recent research concerning the effectiveness of embodiment interventions and develop a taxonomy to more properly characterize research on embodied cognition. The main dimensions of this taxonomy are bodily engagement (i.e. how much bodily activity is involved) and task integration (i.e. whether bodily activities are related to a learning task in a meaningful way or not). By locating studies on the 2 × 2 grid resulting from this taxonomy and assessing the corresponding learning outcomes, we identify opportunities, problems, and challenges of research on embodied learning.",
+    "keywords": [],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 6,
+    "manual_order": 100006,
+    "imgs": []
+  },
+  {
+    "key": "dangol2025children",
+    "title": "Children's Mental Models of AI Reasoning: Implications for AI Literacy Education",
+    "authors": "Dangol, Aayushi and Wolfe, Robert and Zhao, Runhua and Kim, JaeWon and Ramanan, Trushaa and Davis, Katie and Kientz, Julie A.",
+    "year": 2025,
+    "venue_short": "24th Interaction Design '25",
+    "venue_full": "Proceedings of the 24th Interaction Design and Children",
+    "doi": "10.1145/3713043.3728856",
+    "abstract": "As artificial intelligence (AI) advances in reasoning capabilities, most recently with the emergence of Large Reasoning Models (LRMs), understanding how children conceptualize AI’s reasoning processes becomes critical for fostering AI literacy. While one of the “Five Big Ideas” in AI education highlights reasoning algorithms as central to AI decision-making, less is known about children’s mental models in this area. Through a two-phase approach, consisting of a co-design session with 8 children followed by a field study with 106 children (grades 3 - 8), we identified three models of AI reasoning: Deductive, Inductive, and Inherent. Our findings reveal that younger children (grades 3 - 5) often attribute AI’s reasoning to inherent intelligence, while older children (grades 6 - 8) recognize AI as a pattern recognizer. We highlight three tensions that surfaced in children’s understanding of AI reasoning and conclude with implications for scaffolding AI curricula and designing explainable AI tools.",
+    "abstract_hl": "As artificial intelligence (AI) advances in reasoning capabilities, most recently with the emergence of Large Reasoning Models (LRMs), understanding how children conceptualize AI’s reasoning processes becomes critical for fostering AI literacy. While one of the “Five Big Ideas” in AI education highlights reasoning algorithms as central to AI decision-making, less is known about children’s mental models in this area. Through a two-phase approach, consisting of a co-design session with 8 children followed by a field study with 106 children (grades 3 - 8), we identified three models of AI reasoning: Deductive, Inductive, and Inherent. Our findings reveal that younger children (grades 3 - 5) often attribute AI’s reasoning to inherent intelligence, while older children (grades 6 - 8) recognize AI as a pattern recognizer. We highlight three tensions that surfaced in children’s understanding of AI reasoning and conclude with implications for scaffolding AI curricula and designing explainable AI tools.",
+    "keywords": [
+      "AI Literacy",
+      "AI Reasoning",
+      "Field Study",
+      "Participatory Design"
+    ],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 7,
+    "manual_order": 100007,
+    "imgs": []
+  },
+  {
+    "key": "cassell2001making",
+    "title": "Making space for voice: Technologies to support children’s fantasy and storytelling",
+    "authors": "Cassell, Justine and Ryokai, Kimiko",
+    "year": 2001,
+    "venue_short": "Personal and ubiquitous '01",
+    "venue_full": "Personal and ubiquitous computing",
+    "doi": "10.1007/PL00000018",
+    "abstract": "Fantasy play and storytelling serve an important role in young children’s development. While computers are increasingly present in the world of young children, there is a lack of computational tools to support children’s voices in everyday storytelling, particularly in the context of fantasy play. We believe that there is a need for computational systems that engage in story-listening rather than story-telling. This paper introduces StoryMat, a system that supports and listens to children’s voices in their own storytelling play. StoryMat offers a child-driven, story-listening space by recording and recalling children’s narrating voices, and the movements they make with their stuffed animals on a colourful story-evoking quilt. Empirical research with children shows that StoryMat fosters developmentally advanced forms of storytelling of the kind that has been shown to provide a bridge to written literacy, and provides a space where children engage in fantasy storytelling collaboratively with or without a playmate. The paper addresses the importance of supporting young children’s fantasy play and suggests a new way for technology to play an integral part in that activity.",
+    "abstract_hl": "Fantasy play and storytelling serve an important role in young children’s development. While computers are increasingly present in the world of young children, there is a lack of computational tools to support children’s voices in everyday storytelling, particularly in the context of fantasy play. We believe that there is a need for computational systems that engage in story-listening rather than story-telling. This paper introduces StoryMat, a system that supports and listens to children’s voices in their own storytelling play. StoryMat offers a child-driven, story-listening space by recording and recalling children’s narrating voices, and the movements they make with their stuffed animals on a colourful story-evoking quilt. Empirical research with children shows that StoryMat fosters developmentally advanced forms of storytelling of the kind that has been shown to provide a bridge to written literacy, and provides a space where children engage in fantasy storytelling collaboratively with or without a playmate. The paper addresses the importance of supporting young children’s fantasy play and suggests a new way for technology to play an integral part in that activity.",
+    "keywords": [],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 8,
+    "manual_order": 100008,
+    "imgs": []
+  },
+  {
+    "key": "heljakka2019toys",
+    "title": "Toys that mobilize: past, present and future of phygital playful technology",
+    "authors": "Heljakka, Katriina and Iham{\\\"a}ki, Pirita",
+    "year": 2019,
+    "venue_short": "Future Technologies '19",
+    "venue_full": "Proceedings of the Future Technologies Conference",
+    "doi": "10.1007/978-3-030-32523-7_46",
+    "abstract": "This exploratory paper focuses on the technological development of the toy medium with an interest in toys’ capacity to mobilize homo ludens, the playing human. By conducting an extensive literary review on the history and the present of mobile play objects, the study demonstrates how toys have developed from early moving and mechanical automata to playthings that move by themselves through in-built computerized components. The interest is two-fold: By analyzing the historical trajectory of mobile toys, the authors highlight the role of both toys and their players as participants in technologically mediated, phygital play. This hybrid form of playing combines the physicality of playthings with both mechanical and digital features. The results of the review show how toys—character toys in particular—have transformed from entertaining, self-moving spectacles to educational machines that mobilize the player both physically and geographically. Based on the results of the literary review, the authors suggest a continuum that visualizes the development of the types of toys that afford mobility in play of the past, present, and future. The paper concludes with the observation that phygital, playful technologies, such as character toys, have the capacity to influence human well-being in its various dimensions. By making them mobile, toys as a medium invite engagement with phygital playful technologies to enhance physical, cognitive, and social well-being.",
+    "abstract_hl": "This exploratory paper focuses on the technological development of the toy medium with an interest in toys’ capacity to mobilize homo ludens, the playing human. By conducting an extensive literary review on the history and the present of mobile play objects, the study demonstrates how toys have developed from early moving and mechanical automata to playthings that move by themselves through in-built computerized components. The interest is two-fold: By analyzing the historical trajectory of mobile toys, the authors highlight the role of both toys and their players as participants in technologically mediated, phygital play. This hybrid form of playing combines the physicality of playthings with both mechanical and digital features. The results of the review show how toys—character toys in particular—have transformed from entertaining, self-moving spectacles to educational machines that mobilize the player both physically and geographically. Based on the results of the literary review, the authors suggest a continuum that visualizes the development of the types of toys that afford mobility in play of the past, present, and future. The paper concludes with the observation that phygital, playful technologies, such as character toys, have the capacity to influence human well-being in its various dimensions. By making them mobile, toys as a medium invite engagement with phygital playful technologies to enhance physical, cognitive, and social well-being.",
+    "keywords": [],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 9,
+    "manual_order": 100009,
+    "imgs": []
+  },
+  {
+    "key": "gennari2026phygitalartefacts",
+    "title": "Comparing Robots and Non-robot Phygital Artefacts in Children’s Storytelling via a Systematic Review",
+    "authors": "Gennari, Rosella and Khan, Muhammad Bilal and Melonio, Alessandra and Pellegrino, Maria Angela",
+    "year": 2026,
+    "venue_short": "HRI '26",
+    "venue_full": "Proceedings of the 21st ACM/IEEE International Conference on Human-Robot Interaction",
+    "doi": "10.1145/3757279.3785590",
+    "abstract": "Storytelling is a widely explored educational practice. Within Human–Robot Interaction (HRI), robots are extensively employed for storytelling. In parallel, non-robot phygital artefacts — physical objects augmented with digital technologies — have been considered for supporting interaction and collaboration. However, systematic comparisons between these approaches remain limited. This paper presents a systematic review of 135 out of 1,040 studies (2014–2025) involving participants under 18. The review compares robots and non-robot phygital artefacts used in storytelling. Studies were coded across analytic lenses on media, participation, collaboration, learning goals, and Artificial Intelligent support, enabling age-stratified comparison. Findings reveal that non-robot phygital artefacts more consistently foster peer collaboration and creative ownership, while robots primarily contribute social presence and novelty, often structuring participation sequentially. The review highlights implications for future HRI design, suggesting that robots should complement alternative phygital artefacts by promoting openness, adaptability, and collaboration in storytelling",
+    "abstract_hl": "Storytelling is a widely explored educational practice. Within Human–Robot Interaction (HRI), robots are extensively employed for storytelling. In parallel, non-robot phygital artefacts — physical objects augmented with digital technologies — have been considered for supporting interaction and collaboration. However, systematic comparisons between these approaches remain limited. This paper presents a systematic review of 135 out of 1,040 studies (2014–2025) involving participants under 18. The review compares robots and non-robot phygital artefacts used in storytelling. Studies were coded across analytic lenses on media, participation, collaboration, learning goals, and Artificial Intelligent support, enabling age-stratified comparison. Findings reveal that non-robot phygital artefacts more consistently foster peer collaboration and creative ownership, while robots primarily contribute social presence and novelty, often structuring participation sequentially. The review highlights implications for future HRI design, suggesting that robots should complement alternative phygital artefacts by promoting openness, adaptability, and collaboration in storytelling",
+    "keywords": [
+      "Artificial Intelligence",
+      "Children",
+      "Collaboration",
+      "Phygital Artefacts",
+      "Robots",
+      "STEM",
+      "Storytelling",
+      "Systematic Literature Review"
+    ],
+    "affiliations": [],
+    "quotes": "",
+    "thoughts": "",
+    "apply": "",
+    "tags": [],
+    "ai": "",
+    "rating": 0,
+    "add_order": 10,
+    "manual_order": 100010,
+    "imgs": []
+  },
+  {
+    "key": "dangol2026toys",
+    "title": "Toys that listen, talk, and play: Understanding Children's Sensemaking and Interactions with AI Toys",
+    "authors": "Dangol, Aayushi and Gupta, Meghna and Yoo, Daeun and Wolfe, Robert and Yip, Jason and Roesner, Franziska and Kientz, Julie A.",
+    "year": 2026,
+    "venue_short": "25th Interaction Design '26",
+    "venue_full": "Proceedings of the 25th Annual ACM Interaction Design and Children Conference",
+    "doi": "10.1145/3773077.3806142",
+    "abstract": "Generative AI (genAI) is increasingly being integrated into children’s everyday lives, not only through screens but also through so-called “screen-free” AI toys. These toys can simulate emotions, personalize responses, and recall prior interactions, creating the illusion of an ongoing social connection. Such capabilities raise important questions about how children understand boundaries, agency, and relationships when interacting with AI toys. To investigate this, we conducted two participatory design sessions with eight children ages 6 - 11 where they engaged with three different AI toys, shifting between play, experimentation, and reflection. Our findings reveal that children approached AI toys with genuine curiosity, profiling them as social beings. However, frequent interaction breakdowns and mismatches between apparent intelligence and toy-like form disrupted expectations around play and led to adversarial play. We conclude with implications and design provocations to navigate children’s encounters with AI toys in more transparent, developmentally appropriate, and responsible ways.",
+    "abstract_hl": "Generative AI (genAI) is increasingly being integrated into children’s everyday lives, not only through screens but also through so-called “screen-free” AI toys. These toys can simulate emotions, personalize responses, and recall prior interactions, creating the illusion of an ongoing social connection. Such capabilities raise important questions about how children understand boundaries, agency, and relationships when interacting with AI toys. To investigate this, we conducted two participatory design sessions with eight children ages 6 - 11 where they engaged with three different AI toys, shifting between play, experimentation, and reflection. Our findings reveal that children approached AI toys with genuine curiosity, profiling them as social beings. However, frequent interaction breakdowns and mismatches between apparent intelligence and toy-like form disrupted expectations around play and led to adversarial play. We conclude with implications and design provocations to navigate children’s encounters with AI toys in more transparent, developmentally appropriate, and responsible ways.",
+    "keywords": [
+      "Children",
+      "AI Toys",
+      "Generative AI"
+    ],
+    "affiliations": [],
+    "quotes": "5.1.2 Supporting imaginative play beyond scripted interactions. Play\nis inherently imaginative [6, 33], with children using toys as flexible\nresources for storytelling, role play, and creative exploration. However, the AI toys children interacted with in our study were designed\naround specific prompts, activities, or content pathways, reflecting\nassumptions about how play should happen rather than how children actually play. Thus, children’s creative exploration was often\nlimited by the toy’s constrained interaction patterns.\n\n\n==By moving beyond tightly scripted interactions==, AI toys can function\nless as activity managers and more as flexible play partners that\nadapt to children’s evolving ideas and narratives.",
+    "thoughts": "fixed set interaction ai toy -> flexible play support (how children actually play)",
+    "apply": "",
+    "tags": [
+      "grounding"
+    ],
+    "ai": "",
+    "rating": 3,
+    "add_order": 11,
+    "manual_order": 100011,
+    "imgs": []
+  }
+]); });
+  fetch('master.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ MASTER_CONTENT = d.content || ''; })
+    .catch(function() {});
+  fetch('warnings.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ showBibWarnings(d.warnings); })
+    .catch(function() {});
+})();
+
+function setRating(key, value) { /* read-only in static mode */ }
+
+function openMaster() {
+  activeKey = '__master__';
+  renderList();
+  const mb = document.getElementById('master-notes-btn');
+  if (mb) mb.classList.add('active');
+  document.getElementById('welcome').hidden = true;
+  const view = document.getElementById('paper-view');
+  view.hidden = false;
+  renderShots([], null, null);
+
+  view.innerHTML =
+    '<div class="pv-eyebrow">Master Notes</div>'+
+    '<hr class="divider">'+
+    '<div class="tabs">'+
+      '<button class="tab on" data-tab="notes" onclick="switchTab(this,\'notes\')">Notes</button>'+
+    '</div>'+
+    '<div id="tab-notes" class="tab-pane on">'+renderMasterView(MASTER_CONTENT)+'</div>';
+  activateTab(activeTab);
+}
+
+function openPaper(key) {
+  activeKey = key;
+  lastPaperKey = key;
+  const mb = document.getElementById('master-notes-btn');
+  if (mb) mb.classList.remove('active');
+  const p = PAPERS.find(function(x){ return x.key === key; });
+  if (!p) return;
+  renderList();
+  document.getElementById('welcome').hidden = true;
+  const view = document.getElementById('paper-view');
+  view.hidden = false;
+
+  renderShots(p.imgs || [], key, null);
+
+  const list = filtered();
+  const posIdx = list.findIndex(function(x){ return x.key === key; });
+  const counterHtml = '<div class="slide-counter">' + (posIdx>=0 ? (posIdx+1)+' / '+list.length : '') + '</div>';
+
+  const affHtml = (p.affiliations||[]).length
+    ? '<div class="aff-row">'+p.affiliations.map(function(a){ return '<span class="aff-tag">&#x1f3db; '+escHtml(a)+'</span>'; }).join('')+'</div>' : '';
+  const kwHtml = (p.keywords||[]).length
+    ? '<div class="kw-row">'+p.keywords.map(function(k){ return '<span class="kw">'+escHtml(k)+'</span>'; }).join('')+'</div>' : '';
+  const tagsHtml = (p.tags||[]).length
+    ? '<div class="tag-row">'+p.tags.map(function(t){ return '<span class="mytag">#'+escHtml(t)+'</span>'; }).join('')+'</div>' : '';
+  const doiHtml = p.doi ? '<a class="pill" href="https://doi.org/'+p.doi+'" target="_blank">&#x1f517; DOI</a>' : '';
+  const rating = p.rating || 0;
+
+  const starsHtml2 = starsEditHtml(key, rating);
+
+  view.innerHTML =
+    counterHtml+
+    '<div class="pv-eyebrow">'+escHtml(p.venue_full||p.venue_short||'')+'</div>'+
+    '<h1 class="pv-title">'+escHtml(p.title)+'</h1>'+
+    '<div class="pv-meta">'+
+      '<span class="pill">&#x1f464; '+escHtml(p.authors)+'</span>'+
+      '<span class="pill">&#x1f4c5; '+p.year+'</span>'+
+      doiHtml+
+    '</div>'+
+    starsHtml2+
+    affHtml+kwHtml+tagsHtml+
+    '<hr class="divider">'+
+    '<div class="tabs">'+
+      '<button class="tab on" data-tab="notes" onclick="switchTab(this,\'notes\')">Notes</button>'+
+      '<button class="tab" data-tab="abstract" onclick="switchTab(this,\'abstract\')">Abstract</button>'+
+      '<button class="tab" data-tab="ai" onclick="switchTab(this,\'ai\')">AI Analysis</button>'+
+    '</div>'+
+    '<div id="tab-notes" class="tab-pane on">'+sectionsHtml(p, md)+'</div>'+
+    '<div id="tab-abstract" class="tab-pane"><div class="prose">'+(p.abstract_hl ? md(p.abstract_hl) : '')+'</div></div>'+
+    '<div id="tab-ai" class="tab-pane">'+(p.ai ? '<div class="prose">'+md(p.ai)+'</div>' : '')+
+    '</div>';
+  activateTab(activeTab);
+}
+
+</script>
+</body>
+</html>
